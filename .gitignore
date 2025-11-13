@@ -1,0 +1,15 @@
+# Tệp tin hệ thống của HĐH
+.DS_Store
+Thumbs.db
+
+# Bỏ qua TẤT CẢ các thư mục node_modules
+node_modules/
+
+# Bỏ qua TẤT CẢ các file .env
+.env
+*.env
+.env.local
+.env.*.local
+
+# Bỏ qua thư mục build của React
+/client/build
