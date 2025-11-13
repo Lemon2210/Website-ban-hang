@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Container, Carousel, Row, Col, Button } from 'react-bootstrap';
 
 //banner
@@ -21,7 +21,7 @@ function HomePage() {
       try {
         setLoading(true);
         // "proxy" trong package.json sẽ chuyển hướng /api/products
-        const { data } = await axios.get('/api/products');
+        const { data } = await api.get('/products');
         
         // Xáo trộn mảng data và lưu vào state
         const shuffled = data.sort(() => 0.5 - Math.random());

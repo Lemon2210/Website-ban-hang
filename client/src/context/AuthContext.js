@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const AuthContext = createContext();
 
@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
       const { data } = await axios.post(
-        '/api/auth/login',
+        '/auth/login',
         { email, password },
         config
       );
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
       const config = { headers: { 'Content-Type': 'application/json' } };
       // Chỉ gọi API để tạo user, không làm gì thêm
       const { data } = await axios.post(
-        '/api/auth/register',
+        '/auth/register',
         { name, email, password },
         config
       );

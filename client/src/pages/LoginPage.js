@@ -3,7 +3,7 @@ import { Container, Row, Col, Card, Form, Button, Tabs, Tab, Alert, InputGroup }
 import { Eye, EyeSlash } from 'react-bootstrap-icons';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 export function LoginPage() {
   const [key, setKey] = useState('login'); // State cho Tab
@@ -27,7 +27,7 @@ export function LoginPage() {
       setEmailError(null); 
       const debouncer = setTimeout(async () => {
         try {
-          const { data } = await axios.post('/api/auth/check-email', { email });
+          const { data } = await axios.post('/auth/check-email', { email });
           if (data.exists) {
             setEmailError('Email đã tồn tại');
           } else {

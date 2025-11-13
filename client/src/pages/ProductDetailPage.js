@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom'; // Hook để đọc :id từ URL
-import axios from 'axios';
+import api from '../api';
 import { Container, Row, Col, Image, Button, ButtonGroup, Form, Spinner, Alert } from 'react-bootstrap';
 // (Đã xóa StarFill vì không dùng nữa)
 
@@ -29,7 +29,7 @@ function ProductDetailPage() {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
-        const { data } = await axios.get(`/api/products/${productId}`);
+        const { data } = await axios.get(`/products/${productId}`);
         
         setProduct(data.product); // Lưu thông tin gốc (tên, mô tả)
         setVariants(data.variants); // Lưu mảng các biến thể
