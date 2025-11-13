@@ -29,7 +29,7 @@ function ProductDetailPage() {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
-        const { data } = await axios.get(`/products/${productId}`);
+        const { data } = await api.get(`/products/${productId}`);
         
         setProduct(data.product); // Lưu thông tin gốc (tên, mô tả)
         setVariants(data.variants); // Lưu mảng các biến thể

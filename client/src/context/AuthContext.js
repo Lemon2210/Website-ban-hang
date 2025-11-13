@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
-      const { data } = await axios.post(
+      const { data } = await api.post(
         '/auth/login',
         { email, password },
         config
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
      try {
       const config = { headers: { 'Content-Type': 'application/json' } };
       // Chỉ gọi API để tạo user, không làm gì thêm
-      const { data } = await axios.post(
+      const { data } = await api.post(
         '/auth/register',
         { name, email, password },
         config

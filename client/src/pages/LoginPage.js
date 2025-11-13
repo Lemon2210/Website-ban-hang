@@ -27,7 +27,7 @@ export function LoginPage() {
       setEmailError(null); 
       const debouncer = setTimeout(async () => {
         try {
-          const { data } = await axios.post('/auth/check-email', { email });
+          const { data } = await api.post('/auth/check-email', { email });
           if (data.exists) {
             setEmailError('Email đã tồn tại');
           } else {
