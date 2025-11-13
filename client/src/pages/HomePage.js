@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Container, Carousel, Tabs, Tab, Row, Col, Card, Button } from 'react-bootstrap';
+import { Container, Carousel, Row, Col, Button } from 'react-bootstrap';
 
 //banner
 import firstSlide from '../assets/images/nam.png';
