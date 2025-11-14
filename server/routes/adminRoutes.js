@@ -1,25 +1,39 @@
 const express = require('express');
 const router = express.Router();
 
-const { getAllOrders } = require('../controllers/adminController');
+// --- (CẬP NHẬT DÒNG IMPORT) ---
+const { 
+  getAllOrders, 
+  getAllProductsAdmin,
+  createProduct // <-- Thêm hàm mới
+} = require('../controllers/adminController');
 
-// Import cả 2 "vệ sĩ"
+// Import các "vệ sĩ"
 const { protect, admin } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware'); // <-- IMPORT VỆ SĨ UPLOAD
 
 /*
  * @route   GET /api/admin/orders
- * @desc    Định nghĩa tuyến đường lấy tất cả đơn hàng
- * @access  Private/Admin
  */
-router.get(
-  '/orders',
-  protect, // Vệ sĩ cấp 1: Phải đăng nhập
-  admin, // Vệ sĩ cấp 2: Phải là Admin
-  getAllOrders // Nếu qua 2 cửa, mới được chạy hàm này
-);
+router.get('/orders', protect, admin, getAllOrders);
 
-// (Sau này thêm các route khác)
-// router.put('/orders/:id/status', protect, admin, updateOrderStatus);
-// router.get('/stats/sales', protect, admin, getSalesStats);
+/*
+ * @route   GET /api/admin/products
+ */
+router.get('/products', protect, admin, getAllProductsAdmin);
+
+// --- (THÊM ROUTE MỚI NÀY VÀO) ---
+/*
+ * @route   POST /api/admin/products
+ * @desc    Tạo sản phẩm mới
+ */
+router.post(
+  '/products',
+  protect, // 1. Phải đăng nhập
+  admin,   // 2. Phải là Admin
+  upload.single('image'), // 3. Bắt lấy file tên là 'image' và upload
+  createProduct // 4. Chạy logic tạo sản phẩm
+);
+// --- (HẾT ROUTE MỚI) ---
 
 module.exports = router;

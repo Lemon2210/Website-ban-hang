@@ -1,18 +1,27 @@
+/*
+================================================
+|   FILE: server/seeder.js
+|   MÔ TẢ: Kịch bản (script) độc lập để nạp dữ liệu mẫu vào DB.
+|   CÁCH CHẠY:
+|   - Để NẠP dữ liệu: npm run data:import
+|   - Để XÓA dữ liệu: npm run data:destroy
+================================================
+*/
+
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 
-// Nạp các biến môi trường
-dotenv.config();
-
-// Import 5 model
+// Import 5 model (Hãy chắc chắn đường dẫn là đúng)
 const User = require('./models/User');
 const Product = require('./models/Product');
 const Store = require('./models/Store');
 const Inventory = require('./models/Inventory');
 const Order = require('./models/Order');
 
+// Nạp các biến môi trường (để lấy chuỗi kết nối CSDL)
+dotenv.config();
+
 // --- 1. DỮ LIỆU MẪU ---
-// (Chúng ta sẽ tạo inventory sau khi có ID)
 
 const stores = [
   {
@@ -77,7 +86,7 @@ const connectDB = async () => {
 // Hàm xóa sạch dữ liệu
 const destroyData = async () => {
   try {
-    // Xóa theo thứ tự
+    // Xóa theo thứ tự (để tránh lỗi tham chiếu)
     await Order.deleteMany();
     await Inventory.deleteMany();
     await Store.deleteMany();
@@ -91,7 +100,7 @@ const destroyData = async () => {
   }
 };
 
-// Hàm nạp dữ liệu mẫu (quan trọng nhất)
+// Hàm nạp dữ liệu mẫu
 const importData = async () => {
   try {
     // 1. Xóa dữ liệu cũ
@@ -121,7 +130,7 @@ const importData = async () => {
         sku: 'POLO-WHT-S',
         price: 350000,
         attributes: { color: 'Trắng', size: 'S' },
-        imageUrl: 'https://placehold.co/600x600/FFFFFF/000000?text=Polo+Trang+S',
+        imageUrl: 'https://via.placeholder.com/400x400/FFFFFF/000000?text=Polo+Trang+S',
         stock: [
           { store: storeQ1_ID, quantity: 50 },
           { store: storeHN_ID, quantity: 30 },
@@ -132,7 +141,7 @@ const importData = async () => {
         sku: 'POLO-WHT-M',
         price: 350000,
         attributes: { color: 'Trắng', size: 'M' },
-        imageUrl: 'https://placehold.co/600x600/FFFFFF/000000?text=Polo+Trang+M',
+        imageUrl: 'https://via.placeholder.com/400x400/FFFFFF/000000?text=Polo+Trang+M',
         stock: [
           { store: storeQ1_ID, quantity: 40 },
           { store: storeHN_ID, quantity: 0 }, // Hết hàng ở HN
@@ -143,7 +152,7 @@ const importData = async () => {
         sku: 'POLO-BLK-M',
         price: 350000,
         attributes: { color: 'Đen', size: 'M' },
-        imageUrl: 'https://placehold.co/600x600/000000/FFFFFF?text=Polo+Den+M',
+        imageUrl: 'https://via.placeholder.com/400x400/000000/FFFFFF?text=Polo+Den+M',
         stock: [
           { store: storeQ1_ID, quantity: 10 },
           { store: storeHN_ID, quantity: 20 },
@@ -155,7 +164,7 @@ const importData = async () => {
         sku: 'SOMI-BLU-L',
         price: 550000,
         attributes: { color: 'Xanh nhạt', size: 'L' },
-        imageUrl: 'https://placehold.co/600x600/ADD8E6/000000?text=Somi+Xanh+L',
+        imageUrl: 'https://via.placeholder.com/400x400/ADD8E6/000000?text=Somi+Xanh+L',
         stock: [
           { store: storeQ1_ID, quantity: 15 },
           { store: storeHN_ID, quantity: 15 },
@@ -180,13 +189,12 @@ const importData = async () => {
 // Kết nối CSDL
 connectDB().then(() => {
   // Kiểm tra cờ (flag) từ dòng lệnh
+  // (Chúng ta kiểm tra xem người dùng có gõ "node seeder.js -d" hay không)
   if (process.argv[2] === '-d') {
-    // Nếu là 'node seeder.js -d'
-    // (hoặc 'npm run data:destroy')
+    // (Nếu chạy: npm run data:destroy)
     destroyData().then(() => process.exit());
   } else {
-    // Nếu là 'node seeder.js'
-    // (hoặc 'npm run data:import')
+    // (Nếu chạy: npm run data:import)
     importData();
   }
 });

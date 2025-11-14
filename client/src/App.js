@@ -1,51 +1,47 @@
 import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
-import { useAuth } from './context/AuthContext'; // Import "bộ nhớ"
+import { useAuth } from './context/AuthContext';
 
-// Import Bố cục
+// Import Bố cục (Layouts)
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ChatbotWidget from './components/ChatbotWidget';
 import ScrollToTopButton from './components/ScrollToTopButton';
+import AdminLayout from './components/admin/AdminLayout'; // <-- Import bố cục Admin
 
-// Import Trang
+// Import Trang (Pages)
 import HomePage from './pages/HomePage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import { LoginPage } from './pages/LoginPage';
-// (Chúng ta sẽ tạo các trang Admin sau)
-// import DashboardPage from './pages/admin/DashboardPage'; 
+import { CartPage } from './pages/CartPage'; 
+import DashboardPage from './pages/admin/DashboardPage';
+import ProductListPage from './pages/admin/ProductListPage';
+import OrderListPage from './pages/admin/OrderListPage';
+import ProductCreatePage from './pages/admin/ProductCreatePage'; 
 
 // --- "VỆ SĨ" BẢO VỆ ROUTE ---
-
-// "Vệ sĩ" cho User: Đã đăng nhập?
 const UserRoutes = () => {
   const { user } = useAuth();
-  // Nếu đã đăng nhập (bất kể role là gì), cho phép vào
-  // Nếu chưa, điều hướng về /login
   return user ? <Outlet /> : <Navigate to="/login" replace />;
 };
-
-// "Vệ sĩ" cho Admin: Đã đăng nhập VÀ là admin?
 const AdminRoutes = () => {
   const { user } = useAuth();
-  // Nếu đã đăng nhập VÀ role là 'admin', cho phép vào
+  // Nếu đã đăng nhập VÀ role là 'admin', cho phép vào bố cục Admin
   return user && user.role === 'admin' ? (
-    <Outlet /> 
+    <AdminLayout /> // <-- Render BỐ CỤC ADMIN (với Sidebar)
   ) : (
-    // Nếu không, đá về trang chủ
-    <Navigate to="/" replace /> 
+    <Navigate to="/" replace /> // Nếu không, đá về trang chủ
   );
 };
 
 // --- BỐ CỤC CHUNG ---
-// Bố cục cho Khách hàng (Luôn có Header, Footer,...)
 const ClientLayout = () => (
   <>
     <Header />
     <main className="py-4">
       <Container>
-        <Outlet /> {/* Các trang con sẽ được render ở đây */}
+        <Outlet /> 
       </Container>
     </main>
     <Footer />
@@ -53,21 +49,6 @@ const ClientLayout = () => (
     <ScrollToTopButton />
   </>
 );
-
-// (Bố cục cho Admin - chúng ta sẽ làm sau)
-const AdminLayout = () => (
-  <>
-    <Header /> {/* (Sau này sẽ thay bằng AdminHeader/Sidebar) */}
-    <main className="py-4">
-      <Container>
-        <h1>Đây là trang Admin (Layout)</h1>
-        <Outlet /> {/* Các trang con của Admin render ở đây */}
-      </Container>
-    </main>
-    <Footer />
-  </>
-);
-
 
 // --- APP CHÍNH ---
 function App() {
@@ -80,30 +61,25 @@ function App() {
         {/* Các trang công khai */}
         <Route index element={<HomePage />} />
         <Route path="product/:id" element={<ProductDetailPage />} />
-
-        {/* Trang đăng nhập (Nếu chưa login thì vào, nếu rồi thì về home) */}
         <Route 
           path="login" 
           element={!user ? <LoginPage /> : <Navigate to="/" replace />} 
         />
-
-        {/* Các trang riêng tư của User (phải đăng nhập) */}
+        {/* Các trang riêng tư của User */}
         <Route element={<UserRoutes />}>
-          {/* (Thêm các trang như Giỏ hàng, Thanh toán vào đây) */}
-          {/* <Route path="cart" element={<CartPage />} /> */}
-          {/* <Route path="checkout" element={<CheckoutPage />} /> */}
-          {/* <Route path="profile" element={<ProfilePage />} /> */}
+          <Route path="cart" element={<CartPage />} /> 
         </Route>
       </Route>
 
       {/* === 2. Bố cục Admin === */}
-      <Route path="/admin" element={<AdminLayout />}>
-        {/* Các trang riêng tư của Admin */}
-        <Route element={<AdminRoutes />}>
-          {/* <Route index element={<DashboardPage />} /> */}
-          {/* <Route path="orders" element={<OrdersPage />} /> */}
-          {/* <Route path="products" element={<ProductManagementPage />} /> */}
-        </Route>
+      {/* Tất cả các route /admin/* sẽ được render bên trong Bố cục AdminLayout */}
+      <Route path="/admin" element={<AdminRoutes />}> 
+          {/* Các trang con của Admin sẽ được render vào <Outlet> của AdminLayout */}
+          <Route index element={<DashboardPage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="products" element={<ProductListPage />} />
+          <Route path="products/add" element={<ProductCreatePage />} />
+          <Route path="orders" element={<OrderListPage />} />
       </Route>
       
       {/* === 3. Trang 404 (Không tìm thấy) === */}

@@ -9,11 +9,11 @@ function Footer() {
       <Container>
         <Row className="gy-4">
           <Col md={6} lg={3}>
-            <h5>COOLCLUB</h5>
+            <h5>LEMON FASHION</h5>
             <Nav className="flex-column">
-              <Nav.Link href="#" className="text-light p-0">Tài khoản CoolClub</Nav.Link>
+              <Nav.Link href="#" className="text-light p-0">Tài khoản Lemon</Nav.Link>
               <Nav.Link href="#" className="text-light p-0">Đăng kí thành viên</Nav.Link>
-              <Nav.Link href="#" className="text-light p-0">Ưu đãi & Đặc quyền</Nav.Link>
+              
             </Nav>
           </Col>
 
@@ -31,7 +31,7 @@ function Footer() {
             <Nav className="flex-column">
               <Nav.Link href="#" className="text-light p-0">Hỏi đáp - FAQs</Nav.Link>
               <Nav.Link href="#" className="text-light p-0">Hướng dẫn chọn size</Nav.Link>
-              <Nav.Link href="#" className="text-light p-0">Blog</Nav.Link>
+              
             </Nav>
           </Col>
 
@@ -51,7 +51,7 @@ function Footer() {
         </Row>
         <hr className="bg-light" />
         <p className="text-center text-light mb-0" style={{ fontSize: '0.8rem' }}>
-          &copy; {new Date().getFullYear()} CÔNG TY TNHH FASTECH ASIA
+          &copy; {new Date().getFullYear()} CÔNG TY TNHH STU
         </p>
       </Container>
     </footer>

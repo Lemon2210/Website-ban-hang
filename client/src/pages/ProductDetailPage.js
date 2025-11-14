@@ -1,49 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom'; // Hook để đọc :id từ URL
-import api from '../api';
+import { useParams, useNavigate } from 'react-router-dom'; // <-- THÊM useNavigate
+import axios from 'axios';
 import { Container, Row, Col, Image, Button, ButtonGroup, Form, Spinner, Alert } from 'react-bootstrap';
-// (Đã xóa StarFill vì không dùng nữa)
+import { useAuth } from '../context/AuthContext'; // <-- THÊM "BỘ NHỚ" AUTH
+import api from '../api'; // <-- THÊM "BỘ NÃO" API
 
 function ProductDetailPage() {
-  // Lấy id sản phẩm từ thanh URL
   const { id: productId } = useParams();
+  const navigate = useNavigate(); // <-- Hook để chuyển trang
+  
+  // Lấy user từ "bộ nhớ"
+  const { user } = useAuth();
 
-  // State cho dữ liệu
-  const [product, setProduct] = useState(null); // Thông tin sản phẩm gốc
-  const [variants, setVariants] = useState([]); // Mảng các biến thể (màu, size)
+  // (Các state khác giữ nguyên)
+  const [product, setProduct] = useState(null); 
+  const [variants, setVariants] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // State cho lựa chọn của người dùng
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [mainImage, setMainImage] = useState(''); // Ảnh chính đang hiển thị
+  const [mainImage, setMainImage] = useState(''); 
 
-  // State cho các lựa chọn (để render nút)
   const [availableColors, setAvailableColors] = useState([]);
   const [availableSizes, setAvailableSizes] = useState([]);
-
-  // --- 1. GỌI API KHI TRANG TẢI LẦN ĐẦU ---
+  
+  // (useEffect fetchProductDetails giữ nguyên)
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
+        // Dùng `api` (đã có baseURL)
         const { data } = await api.get(`/products/${productId}`);
         
-        setProduct(data.product); // Lưu thông tin gốc (tên, mô tả)
-        setVariants(data.variants); // Lưu mảng các biến thể
+        setProduct(data.product); 
+        setVariants(data.variants); 
 
-        // --- Logic "thông minh" để tìm các lựa chọn ---
-        
-        // 2a. Tìm tất cả các màu duy nhất
         const colors = [...new Set(data.variants.map(v => v.attributes.color))];
         setAvailableColors(colors);
         
-        // 2b. Tự động chọn màu đầu tiên
         if (colors.length > 0) {
           setSelectedColor(colors[0]);
-          // Đặt ảnh chính là ảnh của biến thể đầu tiên có màu này
           const firstVariantOfColor = data.variants.find(v => v.attributes.color === colors[0]);
           if (firstVariantOfColor) {
             setMainImage(firstVariantOfColor.imageUrl);
@@ -59,70 +57,92 @@ function ProductDetailPage() {
     };
 
     fetchProductDetails();
-  }, [productId]); // Chạy lại nếu 'id' trên URL thay đổi
+  }, [productId]);
 
-  
-  // --- 2. LOGIC CẬP NHẬT SIZE KHI CHỌN MÀU ---
+  // (useEffect cập nhật Size giữ nguyên)
   useEffect(() => {
     if (!selectedColor || variants.length === 0) return;
 
-    // Tìm tất cả các size có sẵn cho MÀU đã chọn
     const sizesForColor = variants
       .filter(v => v.attributes.color === selectedColor)
       .map(v => v.attributes.size);
       
-    setAvailableSizes([...new Set(sizesForColor)]); // Lấy size duy nhất
+    setAvailableSizes([...new Set(sizesForColor)]); 
     
-    // Tự động chọn size đầu tiên
     if (sizesForColor.length > 0) {
       setSelectedSize(sizesForColor[0]);
     }
     
-    // Cập nhật ảnh chính khi đổi màu
     const variantForImage = variants.find(v => v.attributes.color === selectedColor);
     if (variantForImage) {
       setMainImage(variantForImage.imageUrl);
     }
 
-  }, [selectedColor, variants]); // Chạy lại mỗi khi đổi màu
+  }, [selectedColor, variants]);
 
 
-  // --- 3. HÀM XỬ LÝ SỰ KIỆN ---
+  // --- (HÀM XỬ LÝ SỰ KIỆN - ĐÃ CẬP NHẬT) ---
   const handleColorClick = (color) => {
     setSelectedColor(color);
   };
-
   const handleSizeClick = (size) => {
     setSelectedSize(size);
   };
   
-  const handleAddToCart = () => {
-    // Tìm biến thể chính xác dựa trên màu và size đã chọn
+  const handleAddToCart = async () => {
+    // 1. Kiểm tra xem user đã đăng nhập chưa
+    if (!user) {
+      // Nếu chưa, "đẩy" họ sang trang login
+      navigate('/login');
+      return;
+    }
+
+    // 2. Tìm biến thể chính xác
     const selectedVariant = variants.find(
       v => v.attributes.color === selectedColor && v.attributes.size === selectedSize
     );
     
     if (selectedVariant) {
-      console.log(`ĐÃ THÊM VÀO GIỎ:`);
-      console.log(`Inventory ID: ${selectedVariant._id}`);
-      console.log(`Số lượng: ${quantity}`);
-      // (Chúng ta sẽ gọi API "Thêm vào giỏ hàng" ở đây sau)
+      try {
+        // 3. Lấy token từ "bộ nhớ" (localStorage)
+        const config = {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${user.token}`,
+          },
+        };
+        
+        // 4. Gọi API "Thêm vào giỏ"
+        await api.post(
+          '/cart/add', 
+          { 
+            inventoryId: selectedVariant._id, 
+            quantity: quantity 
+          }, 
+          config
+        );
+        
+        // 5. Thông báo và chuyển sang trang giỏ hàng
+        alert('Đã thêm vào giỏ hàng!');
+        navigate('/cart');
+
+      } catch (err) {
+        alert('Có lỗi xảy ra khi thêm vào giỏ hàng.');
+        console.error(err);
+      }
     } else {
-      console.error("Không tìm thấy biến thể phù hợp");
+      alert("Không tìm thấy biến thể sản phẩm phù hợp");
     }
   };
 
 
-  // --- 4. RENDER GIAO DIỆN ---
-  
+  // --- (RENDER GIAO DIỆN - Giữ nguyên) ---
   if (loading) {
     return <div className="text-center my-5"><Spinner animation="border" /></div>;
   }
-
   if (error) {
     return <Alert variant="danger">{error}</Alert>;
   }
-
   if (!product) {
     return null;
   }
@@ -132,18 +152,13 @@ function ProductDetailPage() {
       <Row>
         {/* CỘT BÊN TRÁI (Hình ảnh) */}
         <Col md={7}>
-          {/* Ảnh chính */}
           <Image src={mainImage || 'https://via.placeholder.com/600x600'} alt={product.name} fluid rounded />
-          {/* (Bạn có thể thêm các ảnh thumbnail ở đây sau) */}
         </Col>
 
         {/* CỘT BÊN PHẢI (Thông tin & Lựa chọn) */}
         <Col md={5}>
           <h3>{product.name}</h3>
           
-          {/* (PHẦN ĐÁNH GIÁ SAO ĐÃ BỊ XÓA) */}
-
-          {/* (Chúng ta sẽ lấy giá từ biến thể được chọn sau) */}
           <h2 className="my-3">
             {variants.length > 0 ? `${variants[0].price.toLocaleString('vi-VN')}₫` : '...'}
           </h2>
@@ -197,7 +212,6 @@ function ProductDetailPage() {
           <Button variant="dark" size="lg" className="w-100" onClick={handleAddToCart}>
             Thêm vào giỏ
           </Button>
-
         </Col>
       </Row>
     </Container>

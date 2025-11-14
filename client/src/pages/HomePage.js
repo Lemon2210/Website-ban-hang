@@ -101,7 +101,7 @@ function HomePage() {
         <Row className="align-items-center">
           <Col md={6}>
             <h1 className="display-4">ĐỒ CHẠY BỘ</h1>
-            <p>Nhập COOL100 Giảm 100K đơn từ 890K</p>
+            <p>Sản phẩm mới của Lemon Fashion</p>
             <Button variant="light" href="/phu-kien">MUA NGAY</Button>
           </Col>
           <Col md={6}>

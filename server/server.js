@@ -9,29 +9,24 @@ const app = express();
 
 app.use(express.json());
 
-// --- 2. CẤU HÌNH CORS (ĐÃ CẬP NHẬT) ---
-// Thêm TẤT CẢ các frontend URL vào đây
-const allowedOrigins = [
-  'http://localhost:3000', // Cho máy local
-  'https://dh52200455.site', // Domain chính của bạn (HTTPS)
-  'https://www.dh52200455.site', // Domain chính có www
-  'https://website-ban-hang-mu.vercel.app' // Domain Vercel (từ log image_09d8a5.png)
-];
+// --- 2. CẤU HÌNH CORS (PHƯƠNG PHÁP MỚI ĐỂ DEBUG) ---
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Domain này không được phép truy cập (CORS)'));
-    }
-  }
-}));
+// (Tạm thời "mở toang" cửa cho mọi domain)
+// BẰNG CÁCH GỌI app.use(cors()) MÀ KHÔNG CẦN TÙY CHỌN
+app.use(cors());
+
+// *** LƯU Ý BẢO MẬT ***
+// Dòng 'app.use(cors())' ở trên cho phép MỌI TÊN MIỀN gọi API của bạn.
+// Điều này là TỐT cho việc debug ở localhost,
+// nhưng là một RỦI RO BẢO MẬT LỚN khi deploy.
+//
+// => SAU KHI chúng ta sửa xong, chúng ta SẼ quay lại
+//    cấu hình "danh sách khách mời" (allowedOrigins)
+//    một cách chính xác.
 // --- HẾT CẤU HÌNH CORS ---
 
 
 // --- 3. KẾT NỐI CƠ SỞ DỮ LIỆU MONGODB ---
-// (Code kết nối MongoDB của bạn giữ nguyên...)
 const dbURI = process.env.MONGODB_URI;
 if (!dbURI) {
   console.error('❌ LỖI NGHIÊM TRỌNG: MONGODB_URI không được tìm thấy trong file .env');
@@ -50,8 +45,6 @@ mongoose
 
 
 // --- 4. ĐỊNH NGHĨA CÁC TUYẾN ĐƯỜNG API (ROUTES) ---
-
-// (Route gốc để kiểm tra)
 app.get('/', (req, res) => {
   res.status(200).json({
     message: 'Chào mừng đến với API Shop Thời Trang!',
@@ -59,7 +52,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// (Import và .use() các routes khác giữ nguyên)
 const productRoutes = require('./routes/productRoutes');
 const authRoutes = require('./routes/authRoutes');
 const cartRoutes = require('./routes/cartRoutes');
