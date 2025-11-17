@@ -7,7 +7,8 @@ const {
   getAllProductsAdmin,
   createProduct, // <-- Thêm hàm mới
   checkSku,
-  deleteInventory
+  deleteInventory,
+  updateProduct // <-- Thêm hàm cập nhật sản phẩm
 } = require('../controllers/adminController');
 
 // Import các "vệ sĩ"
@@ -38,6 +39,14 @@ router.post(
   admin,
   upload.any(), 
   createProduct
+);
+
+router.put(
+  '/products/:id', 
+  protect, 
+  admin, 
+  upload.any(), // Cho phép upload ảnh mới nếu có
+  updateProduct
 );
 // --- (HẾT ROUTE MỚI) ---
 

@@ -19,6 +19,7 @@ import DashboardPage from './pages/admin/DashboardPage';
 import ProductListPage from './pages/admin/ProductListPage';
 import OrderListPage from './pages/admin/OrderListPage';
 import ProductCreatePage from './pages/admin/ProductCreatePage'; 
+import ProductEditPage from './pages/admin/ProductEditPage'; // Import file mới
 
 // --- "VỆ SĨ" BẢO VỆ ROUTE ---
 const UserRoutes = () => {
@@ -79,6 +80,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="products" element={<ProductListPage />} />
           <Route path="products/add" element={<ProductCreatePage />} />
+          <Route path="products/edit/:id" element={<ProductEditPage />} />
           <Route path="orders" element={<OrderListPage />} />
       </Route>
       

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Image, Spinner, Alert, Badge, Modal, Form } from 'react-bootstrap'; // <-- Thêm Modal, Form
-import { PencilSquare, Trash, PlusLg } from 'react-bootstrap-icons';
+import { Table, Button, Image, Spinner, Alert, Badge, Row, Col, InputGroup, FormControl, Modal, Form } from 'react-bootstrap';
+import { PencilSquare, Trash, PlusLg, Search, Filter } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
-import api from '../../api';
+import api from '../../api'; // "Bộ não" API
 import { useAuth } from '../../context/AuthContext';
 
 function ProductListPage() {
@@ -11,124 +11,183 @@ function ProductListPage() {
   const [error, setError] = useState(null);
   
   // --- STATE CHO MODAL XÓA ---
-  const [showModal, setShowModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null); // Lưu sản phẩm đang chọn xóa
-  const [confirmSku, setConfirmSku] = useState(''); // Lưu SKU người dùng nhập vào
-  const [deleteError, setDeleteError] = useState(null); // Lưu lỗi nếu nhập sai SKU
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [confirmSku, setConfirmSku] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   const { user } = useAuth();
 
-  // Hàm tải dữ liệu (Giữ nguyên)
+  // --- 1. HÀM TẢI DỮ LIỆU TỪ API ---
   const fetchProductsAdmin = async () => {
-    if (!user || !user.token) {
-        setError('Cần có quyền Admin để xem trang này.');
-        setLoading(false);
-        return;
-    }
+    if (!user || !user.token) return;
+    
     try {
       setLoading(true);
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+      };
+      // Gọi API lấy danh sách (Inventory + Product info)
       const { data } = await api.get('/admin/products', config);
       setProducts(data);
       setLoading(false);
     } catch (err) {
       setError('Không thể tải danh sách sản phẩm.');
       setLoading(false);
+      console.error(err);
     }
   };
 
   useEffect(() => {
     fetchProductsAdmin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // --- 2. LOGIC TÍNH TRẠNG THÁI TỒN KHO ---
   const getStockInfo = (stockArray) => {
+    if (!stockArray) return { totalStock: 0, status: "Hết hàng", variant: "danger" };
+
+    // Tính tổng số lượng từ tất cả các cửa hàng
     const totalStock = stockArray.reduce((acc, store) => acc + store.quantity, 0);
-    let variant, text, status;
+    
+    let variant, status, text;
+
     if (totalStock > 50) {
-      variant = "success"; status = "Còn hàng";
+      variant = "success"; // Màu xanh
+      status = "Còn hàng";
     } else if (totalStock > 0 && totalStock <= 20) {
-      variant = "warning"; text = "dark"; status = "SL thấp";
+      variant = "warning"; // Màu vàng
+      text = "dark"; // Chữ đen cho dễ đọc
+      status = "SL thấp";
     } else if (totalStock === 0) {
-      variant = "danger"; status = "Hết hàng";
+      variant = "danger"; // Màu đỏ
+      status = "Hết hàng";
     } else {
-      variant = "success"; status = "Còn hàng";
+      // Trường hợp còn lại (21-50)
+      variant = "success";
+      status = "Còn hàng";
     }
+    
     return { totalStock, status, variant, text };
   };
 
-  // --- CÁC HÀM XỬ LÝ XÓA ---
+  // --- 3. CÁC HÀM XỬ LÝ XÓA ---
 
-  // 1. Khi nhấn nút "Thùng rác" -> Mở Modal
-  const handleDeleteClick = (product) => {
-    setProductToDelete(product); // Lưu thông tin sản phẩm cần xóa
-    setConfirmSku(''); // Reset ô nhập
-    setDeleteError(null); // Reset lỗi
-    setShowModal(true); // Hiện Modal
+  // Bấm nút Thùng rác -> Mở Modal
+  const handleDeleteClick = (item) => {
+    setProductToDelete(item);
+    setConfirmSku('');
+    setDeleteError('');
+    setShowDeleteModal(true);
   };
 
-  // 2. Khi nhấn "Xác nhận xóa" trong Modal
+  // Bấm xác nhận trong Modal -> Gọi API Xóa
   const handleConfirmDelete = async () => {
-    // Kiểm tra SKU nhập vào có khớp không
+    if (!productToDelete) return;
+
+    // Kiểm tra SKU nhập vào
     if (confirmSku !== productToDelete.sku) {
-      setDeleteError('Mã SKU không khớp! Vui lòng nhập lại.');
+      setDeleteError('Mã SKU không khớp!');
       return;
     }
 
-    // Nếu đúng SKU, gọi API xóa
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      // Gọi API xóa biến thể
       await api.delete(`/admin/products/${productToDelete._id}`, config);
       
-      // Xóa thành công -> Đóng modal và tải lại danh sách
-      setShowModal(false);
-      alert('Đã xóa sản phẩm thành công.');
-      fetchProductsAdmin(); 
+      // Thành công
+      setShowDeleteModal(false);
+      alert('Đã xóa sản phẩm thành công!');
+      fetchProductsAdmin(); // Tải lại danh sách
     } catch (err) {
-      setDeleteError('Lỗi server khi xóa sản phẩm.');
+      setDeleteError('Lỗi server: Không thể xóa sản phẩm.');
     }
   };
 
-  // 3. Đóng Modal
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setProductToDelete(null);
-  };
-
-
-  // Render nội dung
+  // --- 4. RENDER GIAO DIỆN ---
   const renderContent = () => {
     if (loading) return <div className="text-center my-5"><Spinner animation="border" /></div>;
     if (error) return <Alert variant="danger">{error}</Alert>;
-    
+    if (products.length === 0) return <div className="text-center my-5">Chưa có sản phẩm nào.</div>;
+
     return (
-      <Table striped bordered hover responsive>
+      <Table striped bordered hover responsive className="align-middle">
         <thead className="table-dark">
           <tr>
             <th>Sản phẩm</th>
             <th>Mã (SKU)</th>
-            <th>Giá</th>
+            <th>Loại</th>
+            <th>Giá (VND)</th>
             <th>SL</th>
             <th>Trạng thái</th>
-            <th className="text-center">Chức năng</th>
+            <th className="text-center">Hành động</th>
           </tr>
         </thead>
         <tbody>
           {products.map((item) => {
             const { totalStock, status, variant, text } = getStockInfo(item.stock);
+            
             return (
               <tr key={item._id}>
-                <td className="align-middle">
-                  <Image src={item.imageUrl} rounded style={{ width: '40px', height: '40px', objectFit: 'cover', marginRight: '10px' }} />
-                  {item.product.name} <small className='text-muted'>({item.attributes.color}, {item.attributes.size})</small>
+                {/* Cột 1: Ảnh + Tên */}
+                <td>
+                  <div className="d-flex align-items-center">
+                    <Image 
+                      src={item.imageUrl} 
+                      alt={item.sku}
+                      rounded 
+                      style={{ width: '50px', height: '50px', objectFit: 'cover', marginRight: '15px' }}
+                    />
+                    <div>
+                      <div className="fw-bold">{item.product?.name}</div>
+                      <small className="text-muted">
+                        {item.attributes.color} - {item.attributes.size}
+                      </small>
+                    </div>
+                  </div>
                 </td>
-                <td className="align-middle">{item.sku}</td>
-                <td className="align-middle">{item.price.toLocaleString()}₫</td>
-                <td className="align-middle">{totalStock}</td>
-                <td className="align-middle"><Badge bg={variant} text={text}>{status}</Badge></td>
-                <td className="align-middle text-center">
-                  <Button variant="outline-primary" size="sm" className="me-2"><PencilSquare /></Button>
-                  {/* Nút Xóa: Gọi hàm mở Modal */}
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDeleteClick(item)}>
+                
+                {/* Cột 2: SKU */}
+                <td>{item.sku}</td>
+                
+                {/* Cột 3: Danh mục (Sub category) */}
+                <td>{item.product?.category?.sub}</td>
+                
+                {/* Cột 4: Giá */}
+                <td>{item.price.toLocaleString('vi-VN')}₫</td>
+                
+                {/* Cột 5: Số lượng */}
+                <td>{totalStock}</td>
+                
+                {/* Cột 6: Trạng thái */}
+                <td>
+                  <Badge bg={variant} text={text} className="px-2 py-1">
+                    {status}
+                  </Badge>
+                </td>
+                
+                {/* Cột 7: Chức năng */}
+                <td className="text-center">
+                  {/* Nút Sửa: Link đến trang Edit (Dùng ID của Product gốc) */}
+                  <Button 
+                    as={Link} 
+                    to={`/admin/products/edit/${item.product?._id}`} 
+                    variant="outline-primary" 
+                    size="sm" 
+                    className="me-2"
+                    title="Chỉnh sửa"
+                  >
+                    <PencilSquare />
+                  </Button>
+                  
+                  {/* Nút Xóa: Mở Modal */}
+                  <Button 
+                    variant="outline-danger" 
+                    size="sm"
+                    onClick={() => handleDeleteClick(item)}
+                    title="Xóa"
+                  >
                     <Trash />
                   </Button>
                 </td>
@@ -142,33 +201,75 @@ function ProductListPage() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Quản lý Sản phẩm</h1>
-        <Button variant="dark" as={Link} to="/admin/products/add">
-          <PlusLg size={20} className="me-2" /> Thêm Sản phẩm
-        </Button>
-      </div>
-      
+      {/* Header Trang */}
+      <Row className="align-items-center mb-4">
+        <Col>
+          <h2 className="mb-1">Quản lý Sản phẩm</h2>
+          <p className="text-muted">Quản lý danh mục và tồn kho của bạn</p>
+        </Col>
+        <Col xs="auto">
+          <Button as={Link} to="/admin/products/add" variant="dark">
+            <PlusLg className="me-2" /> Thêm Sản phẩm
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Thanh Tìm kiếm & Lọc */}
+      <Row className="mb-4">
+        <Col md={8}>
+          <InputGroup>
+            <InputGroup.Text className="bg-white border-end-0">
+              <Search className="text-muted" />
+            </InputGroup.Text>
+            <FormControl 
+              placeholder="Tìm kiếm sản phẩm theo tên hoặc SKU..." 
+              className="border-start-0 ps-0"
+            />
+          </InputGroup>
+        </Col>
+        <Col md={4} className="text-end">
+          <Button variant="outline-secondary">
+            <Filter className="me-2" /> Bộ lọc
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Bảng Dữ liệu */}
       {renderContent()}
 
       {/* --- MODAL XÁC NHẬN XÓA --- */}
-      <Modal show={showModal} onHide={handleCloseModal} centered>
+      <Modal 
+        show={showDeleteModal} 
+        onHide={() => setShowDeleteModal(false)}
+        centered
+        backdrop="static" // Bắt buộc bấm nút để đóng
+      >
         <Modal.Header closeButton className="bg-danger text-white">
           <Modal.Title>Xác nhận Xóa Sản phẩm</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Bạn đang yêu cầu xóa sản phẩm: <strong>{productToDelete?.product.name}</strong></p>
-          <p>Mã SKU: <strong className="text-danger">{productToDelete?.sku}</strong></p>
-          <hr />
-          <p className="text-muted small">Hành động này không thể hoàn tác. Vui lòng nhập chính xác mã SKU <strong>"{productToDelete?.sku}"</strong> vào ô bên dưới để xác nhận.</p>
+          <p>Bạn đang thực hiện xóa biến thể sản phẩm:</p>
+          <div className="alert alert-warning">
+            <strong>{productToDelete?.product?.name}</strong>
+            <br/>
+            Màu: {productToDelete?.attributes.color} | Size: {productToDelete?.attributes.size}
+          </div>
+          <p className="mb-2">
+            Để xác nhận, vui lòng nhập chính xác mã SKU: <br/>
+            <strong className="text-danger user-select-all">{productToDelete?.sku}</strong>
+          </p>
           
           <Form.Group>
-            <Form.Control 
-              type="text" 
-              placeholder="Nhập mã SKU tại đây..." 
+            <Form.Control
+              type="text"
+              placeholder="Nhập mã SKU vào đây..."
               value={confirmSku}
-              onChange={(e) => setConfirmSku(e.target.value)}
+              onChange={(e) => {
+                setConfirmSku(e.target.value);
+                setDeleteError(''); // Xóa lỗi khi gõ lại
+              }}
               isInvalid={!!deleteError}
+              autoFocus
             />
             <Form.Control.Feedback type="invalid">
               {deleteError}
@@ -176,7 +277,9 @@ function ProductListPage() {
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>Hủy bỏ</Button>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Hủy bỏ
+          </Button>
           <Button variant="danger" onClick={handleConfirmDelete}>
             Xóa vĩnh viễn
           </Button>

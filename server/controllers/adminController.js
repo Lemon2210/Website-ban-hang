@@ -162,6 +162,88 @@ const deleteInventory = async (req, res) => {
   }
 };
 
+const updateProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { name, description, gender, mainCategory, subCategory, variants } = req.body;
+    
+    // 1. Parse danh sách biến thể từ JSON string
+    let parsedVariants = [];
+    try {
+      parsedVariants = JSON.parse(variants);
+    } catch (e) {
+      return res.status(400).json({ message: 'Dữ liệu biến thể không hợp lệ.' });
+    }
+
+    // 2. Cập nhật Sản phẩm Gốc (Product)
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      {
+        name,
+        description,
+        gender,
+        category: { main: mainCategory, sub: subCategory },
+      },
+      { new: true } // Trả về dữ liệu mới sau khi update
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm.' });
+    }
+
+    // 3. Xử lý Biến thể (Inventory)
+    // Chiến lược: Xóa hết cũ -> Tạo lại mới (để đảm bảo đồng bộ)
+    await Inventory.deleteMany({ product: productId });
+
+    // Tìm cửa hàng (để gán lại tồn kho)
+    const firstStore = await Store.findOne();
+
+    // 4. Tạo lại các biến thể
+    const inventoryPromises = parsedVariants.map((variant) => {
+      // XỬ LÝ ẢNH:
+      // - Nếu có file mới upload (req.files có fieldname tương ứng) -> Dùng file mới
+      // - Nếu không -> Dùng lại URL cũ (variant.imageUrl) gửi từ frontend lên
+      
+      let finalImageUrl = variant.imageUrl; // Mặc định dùng URL cũ
+      
+      // Kiểm tra xem có file mới cho màu này không
+      if (req.files && req.files.length > 0) {
+        const newImageFile = req.files.find(
+          (file) => file.fieldname === `image_${variant.color}`
+        );
+        if (newImageFile) {
+          finalImageUrl = newImageFile.path; // Dùng URL mới từ Cloudinary
+        }
+      }
+
+      return new Inventory({
+        product: productId,
+        sku: variant.sku,
+        price: Number(variant.price),
+        imageUrl: finalImageUrl,
+        attributes: {
+          color: variant.color,
+          size: variant.size,
+        },
+        stock: [
+          {
+            store: firstStore._id,
+            quantity: Number(variant.quantity)
+          }
+        ]
+      }).save();
+    });
+
+    await Promise.all(inventoryPromises);
+
+    res.status(200).json({ message: 'Cập nhật sản phẩm thành công!', product: updatedProduct });
+
+  } catch (error) {
+    console.error('Lỗi khi cập nhật sản phẩm:', error.message);
+    res.status(500).json({ message: 'Lỗi máy chủ: ' + error.message });
+  }
+};
+
 // ... (module.exports giữ nguyên) ...
 // --- (HẾT HÀM MỚI) ---
 
@@ -173,4 +255,5 @@ module.exports = {
   createProduct, // <-- Thêm hàm mới vào
   checkSku, // <-- Thêm hàm checkSku vào
   deleteInventory, // <-- Thêm hàm xóa biến thể vào
+  updateProduct // <-- Thêm hàm cập nhật sản phẩm vào
 };
