@@ -2,13 +2,15 @@ import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import { useAuth } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast'; // <-- 1. IMPORT TOASTER
 
 // Import Bố cục (Layouts)
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ChatbotWidget from './components/ChatbotWidget';
 import ScrollToTopButton from './components/ScrollToTopButton';
-import AdminLayout from './components/admin/AdminLayout'; // <-- Import bố cục Admin
+import AdminLayout from './components/admin/AdminLayout'; 
+import AdminSidebar from './components/admin/AdminSidebar';
 
 // Import Trang (Pages)
 import HomePage from './pages/HomePage';
@@ -19,7 +21,8 @@ import DashboardPage from './pages/admin/DashboardPage';
 import ProductListPage from './pages/admin/ProductListPage';
 import OrderListPage from './pages/admin/OrderListPage';
 import ProductCreatePage from './pages/admin/ProductCreatePage'; 
-import ProductEditPage from './pages/admin/ProductEditPage'; // Import file mới
+import ProductEditPage from './pages/admin/ProductEditPage'; 
+
 
 // --- "VỆ SĨ" BẢO VỆ ROUTE ---
 const UserRoutes = () => {
@@ -28,11 +31,10 @@ const UserRoutes = () => {
 };
 const AdminRoutes = () => {
   const { user } = useAuth();
-  // Nếu đã đăng nhập VÀ role là 'admin', cho phép vào bố cục Admin
   return user && user.role === 'admin' ? (
-    <AdminLayout /> // <-- Render BỐ CỤC ADMIN (với Sidebar)
+    <Outlet /> 
   ) : (
-    <Navigate to="/" replace /> // Nếu không, đá về trang chủ
+    <Navigate to="/" replace /> 
   );
 };
 
@@ -51,42 +53,69 @@ const ClientLayout = () => (
   </>
 );
 
+// --- BỐ CỤC ADMIN BÊN TRONG ---
+const AdminContentLayout = () => (
+  <div className="d-flex">
+    <AdminSidebar />
+    <div 
+      className="flex-grow-1 p-4" 
+      style={{ marginLeft: '250px', backgroundColor: '#f8f9fa' }}
+    >
+      <Container fluid>
+        <Outlet /> 
+      </Container>
+    </div>
+  </div>
+);
+
+
 // --- APP CHÍNH ---
 function App() {
   const { user } = useAuth();
 
   return (
-    <Routes>
-      {/* === 1. Bố cục Client (Mặc định) === */}
-      <Route path="/" element={<ClientLayout />}>
-        {/* Các trang công khai */}
-        <Route index element={<HomePage />} />
-        <Route path="product/:id" element={<ProductDetailPage />} />
-        <Route 
-          path="login" 
-          element={!user ? <LoginPage /> : <Navigate to="/" replace />} 
-        />
-        {/* Các trang riêng tư của User */}
-        <Route element={<UserRoutes />}>
-          <Route path="cart" element={<CartPage />} /> 
+    // Chúng ta dùng <> (Fragment) để bọc Routes và Toaster
+    <>
+      <Routes>
+        {/* === 1. Bố cục Client (Mặc định) === */}
+        <Route path="/" element={<ClientLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="product/:id" element={<ProductDetailPage />} />
+          <Route 
+            path="login" 
+            element={!user ? <LoginPage /> : <Navigate to="/" replace />} 
+          />
+          <Route element={<UserRoutes />}>
+            <Route path="cart" element={<CartPage />} /> 
+          </Route>
         </Route>
-      </Route>
 
-      {/* === 2. Bố cục Admin === */}
-      {/* Tất cả các route /admin/* sẽ được render bên trong Bố cục AdminLayout */}
-      <Route path="/admin" element={<AdminRoutes />}> 
-          {/* Các trang con của Admin sẽ được render vào <Outlet> của AdminLayout */}
+        {/* === 2. Bố cục Admin === */}
+        <Route 
+          path="/admin"
+          element={
+            <AdminRoutes>
+              <AdminLayout />
+            </AdminRoutes>
+          }
+        >
+          <Route element={<AdminContentLayout />}>
           <Route index element={<DashboardPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="products" element={<ProductListPage />} />
-          <Route path="products/add" element={<ProductCreatePage />} />
-          <Route path="products/edit/:id" element={<ProductEditPage />} />
-          <Route path="orders" element={<OrderListPage />} />
-      </Route>
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="products" element={<ProductListPage />} />
+            <Route path="products/add" element={<ProductCreatePage />} /> 
+            <Route path="products/edit/:id" element={<ProductEditPage />} /> 
+            <Route path="orders" element={<OrderListPage />} />
+          </Route>
+        </Route>
+        
+        {/* === 3. Trang 404 (Không tìm thấy) === */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       
-      {/* === 3. Trang 404 (Không tìm thấy) === */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      {/* 2. ĐẶT TOASTER Ở ĐÂY (NGOÀI CÙNG) */}
+      <Toaster position="top-right" />
+    </>
   );
 }
 
