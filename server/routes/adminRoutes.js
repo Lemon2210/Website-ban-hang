@@ -5,7 +5,8 @@ const router = express.Router();
 const { 
   getAllOrders, 
   getAllProductsAdmin,
-  createProduct // <-- Thêm hàm mới
+  createProduct, // <-- Thêm hàm mới
+  checkSku
 } = require('../controllers/adminController');
 
 // Import các "vệ sĩ"
@@ -22,6 +23,8 @@ router.get('/orders', protect, admin, getAllOrders);
  */
 router.get('/products', protect, admin, getAllProductsAdmin);
 
+router.post('/products/check-sku', protect, admin, checkSku);
+
 // --- (THÊM ROUTE MỚI NÀY VÀO) ---
 /*
  * @route   POST /api/admin/products
@@ -29,10 +32,10 @@ router.get('/products', protect, admin, getAllProductsAdmin);
  */
 router.post(
   '/products',
-  protect, // 1. Phải đăng nhập
-  admin,   // 2. Phải là Admin
-  upload.single('image'), // 3. Bắt lấy file tên là 'image' và upload
-  createProduct // 4. Chạy logic tạo sản phẩm
+  protect,
+  admin,
+  upload.any(), 
+  createProduct
 );
 // --- (HẾT ROUTE MỚI) ---
 

@@ -1,29 +1,27 @@
-// server/models/Product.js
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
-  name: { // Ví dụ: "Áo Polo Basic"
+  name: {
     type: String,
-    required: [true, 'Tên sản phẩm không được để trống'],
+    required: true,
     trim: true,
   },
   description: {
     type: String,
-    required: [true, 'Mô tả không được để trống'],
+    required: true,
   },
+  // --- THÊM TRƯỜNG MỚI ---
+  gender: {
+    type: String,
+    enum: ['Men', 'Women', 'Unisex', 'Kids'], // Các giá trị cho phép
+    default: 'Unisex',
+    required: true
+  },
+  // ----------------------
   category: {
-    main: { 
-      type: String, 
-      required: true, 
-      trim: true // Ví dụ: 'Áo'
-    },
-    sub: { 
-      type: String, 
-      required: true, 
-      trim: true // Ví dụ: 'Áo Polo'
-    },
+    main: { type: String, required: true },
+    sub: { type: String, required: true },
   },
-  // Các trường chung khác có thể thêm sau (chất liệu, v.v.)
 }, {
   timestamps: true,
 });

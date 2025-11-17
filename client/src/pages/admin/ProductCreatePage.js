@@ -1,312 +1,397 @@
-import React, { useState, useCallback } from 'react';
-import { Form, Button, Card, Alert, Row, Col, Image, Spinner } from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom'; // <-- THÊM useNavigate
+import React, { useState, useCallback, useEffect } from 'react';
+import { Form, Button, Card, Alert, Row, Col, Image, Spinner, Table } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { CloudUpload } from 'react-bootstrap-icons';
-import api from '../../api'; // <-- THÊM "BỘ NÃO" API
-import { useAuth } from '../../context/AuthContext'; // <-- THÊM "BỘ NHỚ" AUTH
+import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
+
+// ... (AVAILABLE_COLORS, AVAILABLE_SIZES, ColorImageUpload giữ nguyên)
+const AVAILABLE_COLORS = [
+  { name: "Black", hex: "#000000" },
+  { name: "White", hex: "#FFFFFF" },
+  { name: "Navy", hex: "#000080" },
+  { name: "Red", hex: "#FF0000" },
+  { name: "Green", hex: "#008000" },
+  { name: "Gray", hex: "#808080" },
+  { name: "Beige", hex: "#F5F5DC" }
+];
+
+const AVAILABLE_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+
+const ColorImageUpload = ({ colorName, currentPreview, onImageSelect }) => {
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles?.[0]) {
+      onImageSelect(colorName, acceptedFiles[0]);
+    }
+  }, [colorName, onImageSelect]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': [] },
+    maxFiles: 1,
+  });
+
+  return (
+    <div className="mb-3 border-bottom pb-3">
+      <Form.Label className="fw-bold text-sm">Ảnh cho màu: {colorName} (*)</Form.Label>
+      <div className="d-flex gap-3 align-items-start">
+        <div 
+          {...getRootProps()} 
+          className={`flex-grow-1 p-3 text-center border border-2 border-dashed rounded position-relative ${isDragActive ? 'border-primary bg-light' : 'border-secondary'}`}
+          style={{ cursor: 'pointer', minHeight: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+        >
+          <input {...getInputProps()} />
+          <CloudUpload size={24} className="text-muted mb-1" />
+          <p className="text-muted small mb-0">{isDragActive ? 'Thả ảnh vào đây' : 'Kéo thả hoặc click'}</p>
+        </div>
+        <div 
+            className="border rounded d-flex align-items-center justify-content-center bg-light"
+            style={{width: '100px', height: '100px', overflow: 'hidden', flexShrink: 0}}
+        >
+            {currentPreview ? (
+                <Image src={currentPreview} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+            ) : (
+                <span className="text-muted small">Chưa có ảnh</span>
+            )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function ProductCreatePage() {
-  // --- State cho Form ---
+  // --- State 1: Thông tin chung ---
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [gender, setGender] = useState('Men');
   const [mainCategory, setMainCategory] = useState('Áo');
   const [subCategory, setSubCategory] = useState('');
-  const [sku, setSku] = useState('');
-  const [price, setPrice] = useState('');
-  const [color, setColor] = useState('');
-  const [size, setSize] = useState('');
-  const [quantity, setQuantity] = useState('');
+  const [basePrice, setBasePrice] = useState(''); 
+  const [baseSku, setBaseSku] = useState('');
+  
+  // --- STATE MỚI: LỖI SKU ---
+  const [skuError, setSkuError] = useState(null); 
 
-  // --- State cho Ảnh ---
-  const [selectedFile, setSelectedFile] = useState(null); 
-  const [preview, setPreview] = useState(''); 
+  // --- State 2: Biến thể ---
+  const [selectedColors, setSelectedColors] = useState([]);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [generatedVariants, setGeneratedVariants] = useState([]);
 
-  // --- State điều khiển ---
+  // --- State 3: Ảnh ---
+  const [colorImages, setColorImages] = useState({}); 
+  const [colorPreviews, setColorPreviews] = useState({});
+
+  // --- State Hệ thống ---
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  // --- Lấy Token và Điều hướng ---
-  const { user } = useAuth(); // Lấy thông tin user (để lấy token)
-  const navigate = useNavigate(); // Dùng để chuyển trang sau khi tạo
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  // --- Cấu hình React Dropzone ---
-  const onDrop = useCallback((acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreview(URL.createObjectURL(file)); 
-      setError(null); 
+  // --- LOGIC MỚI: REALTIME CHECK SKU ---
+  useEffect(() => {
+    // Chỉ kiểm tra nếu SKU có độ dài > 2 ký tự
+    if (baseSku.length > 2) {
+      // Reset lỗi tạm thời
+      setSkuError(null);
+
+      const debouncer = setTimeout(async () => {
+        try {
+          const config = {
+            headers: { Authorization: `Bearer ${user.token}` }
+          };
+          // Gọi API kiểm tra
+          const { data } = await api.post('/admin/products/check-sku', { sku: baseSku }, config);
+          
+          if (data.exists) {
+            setSkuError('Mã SKU này (hoặc biến thể của nó) đã tồn tại!');
+          } else {
+            setSkuError(null);
+          }
+        } catch (err) {
+          console.error("Lỗi check SKU", err);
+        }
+      }, 500); // Đợi 0.5s sau khi ngừng gõ
+
+      return () => clearTimeout(debouncer);
+    } else {
+      setSkuError(null);
     }
-  }, []);
+  }, [baseSku, user.token]);
+  // --- HẾT LOGIC CHECK SKU ---
 
-  const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
-    onDrop,
-    accept: { 'image/jpeg': [], 'image/png': [], 'image/webp': [] },
-    maxFiles: 1, 
-    maxSize: 10 * 1024 * 1024, // 10MB
-  });
 
-  const fileRejectionItems = fileRejections.map(({ file, errors }) => (
-    <div key={file.path} className="text-danger mt-2">
-      {file.path} - {file.size / 1024 / 1024} MB.
-      {errors.map(e => <span key={e.code}> {e.message}</span>)}
-    </div>
-  ));
+  // --- LOGIC: Tự động sinh biến thể ---
+  useEffect(() => {
+    const newVariants = [];
+    if (selectedColors.length > 0 && selectedSizes.length > 0) {
+      selectedColors.forEach(color => {
+        selectedSizes.forEach(size => {
+          const autoSku = baseSku ? `${baseSku}-${color.toUpperCase()}-${size}` : '';
+          const existing = generatedVariants.find(v => v.color === color && v.size === size);
+          newVariants.push({
+            color: color,
+            size: size,
+            price: existing ? existing.price : basePrice, 
+            sku: existing ? existing.sku : autoSku,       
+            quantity: existing ? existing.quantity : 0 
+          });
+        });
+      });
+    }
+    setGeneratedVariants(newVariants);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedColors, selectedSizes, basePrice, baseSku]); 
 
-  // --- (HÀM SUBMIT FORM - ĐÃ CẬP NHẬT HOÀN CHỈNH) ---
+  // --- Các hàm xử lý sự kiện (Giữ nguyên) ---
+  const toggleColor = (colorName) => {
+    setSelectedColors(prev => {
+      const isSelected = prev.includes(colorName);
+      if (isSelected) {
+        const newColors = prev.filter(c => c !== colorName);
+        const newImages = { ...colorImages };
+        delete newImages[colorName];
+        setColorImages(newImages);
+        const newPreviews = { ...colorPreviews };
+        delete newPreviews[colorName];
+        setColorPreviews(newPreviews);
+        return newColors;
+      } else {
+        return [...prev, colorName];
+      }
+    });
+  };
+
+  const toggleSize = (sizeName) => {
+    setSelectedSizes(prev => 
+      prev.includes(sizeName) ? prev.filter(s => s !== sizeName) : [...prev, sizeName]
+    );
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const updatedVariants = [...generatedVariants];
+    updatedVariants[index][field] = value;
+    setGeneratedVariants(updatedVariants);
+  };
+
+  const handleImageSelect = (color, file) => {
+    setColorImages(prev => ({ ...prev, [color]: file }));
+    setColorPreviews(prev => ({ ...prev, [color]: URL.createObjectURL(file) }));
+  };
+
+  // --- Submit ---
   const submitHandler = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // 1. Kiểm tra xem có file ảnh không
-    if (!selectedFile) {
-        setError('Vui lòng chọn một hình ảnh sản phẩm.');
+    // Kiểm tra lỗi SKU trước khi gửi
+    if (skuError) {
+        setError('Vui lòng sửa mã SKU bị trùng trước khi lưu.');
         setLoading(false);
         return;
     }
-    
-    // 2. Tạo FormData
-    // (Chúng ta phải dùng FormData vì chúng ta gửi file, không phải JSON)
+
+    if (selectedColors.length === 0 || selectedSizes.length === 0) {
+        setError('Vui lòng chọn ít nhất 1 màu và 1 size.');
+        setLoading(false);
+        return;
+    }
+
+    const missingImages = selectedColors.filter(color => !colorImages[color]);
+    if (missingImages.length > 0) {
+      setError(`Vui lòng chọn ảnh cho màu: ${missingImages.join(', ')}`);
+      setLoading(false);
+      return;
+    }
+
     const formData = new FormData();
-    
-    // Thêm các trường dữ liệu text
     formData.append('name', name);
     formData.append('description', description);
+    formData.append('gender', gender);
     formData.append('mainCategory', mainCategory);
     formData.append('subCategory', subCategory);
-    formData.append('sku', sku);
-    formData.append('price', price);
-    formData.append('color', color);
-    formData.append('size', size);
-    formData.append('quantity', quantity);
-    
-    // Thêm file ảnh (tên trường phải là "image" như backend mong đợi)
-    formData.append('image', selectedFile);
+    formData.append('variants', JSON.stringify(generatedVariants));
+
+    Object.keys(colorImages).forEach(color => {
+      formData.append(`image_${color}`, colorImages[color]);
+    });
 
     try {
-      // 3. Cấu hình (gửi token)
       const config = {
         headers: {
-          'Content-Type': 'multipart/form-data', // Quan trọng: Báo cho server biết đây là form-data
+          'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${user.token}`,
         },
       };
-
-      // 4. Gửi request đến API
       await api.post('/admin/products', formData, config);
-
-      // 5. Xử lý thành công
       setLoading(false);
       alert('Tạo sản phẩm thành công!');
-      navigate('/admin/products'); // Chuyển về trang danh sách
-      
+      navigate('/admin/products');
     } catch (err) {
-      // 6. Xử lý lỗi
       setLoading(false);
       const message = err.response?.data?.message || 'Đã có lỗi xảy ra từ server.';
       setError(message);
-      console.error(err);
     }
   };
 
   return (
     <>
-      <Button as={Link} to="/admin/products" variant="outline-dark" className="mb-3">
-        Quay lại Danh sách
-      </Button>
-      <h1 className="mb-4">Thêm Sản phẩm Mới</h1>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="mb-0">Thêm Sản phẩm Mới</h2>
+        <Button as={Link} to="/admin/products" variant="outline-dark">Quay lại</Button>
+      </div>
       
-      {/* Quan trọng: Chúng ta KHÔNG dùng <Form onSubmit={...}> của React-Bootstrap 
-        vì nó không hỗ trợ 'enctype' dễ dàng. Chúng ta dùng thẻ <form> HTML 
-        thông thường.
-      */}
-      <form onSubmit={submitHandler}>
+      <Form onSubmit={submitHandler}>
         <Row>
-          {/* ============ CỘT TRÁI (Thông tin chính) ============ */}
-          <Col md={8}>
-            {/* --- Thông tin Cơ bản (Sản phẩm Gốc) --- */}
-            <Card className="mb-3">
-              <Card.Header as="h5">Thông tin Cơ bản (Sản phẩm Gốc)</Card.Header>
+          <Col lg={8}>
+            <Card className="mb-4 shadow-sm">
+              <Card.Header as="h5" className="bg-white py-3">1. Thông tin chung</Card.Header>
               <Card.Body>
-                <Form.Group className="mb-3" controlId="productName">
+                <Form.Group className="mb-3">
                   <Form.Label>Tên Sản phẩm (*)</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    placeholder="Ví dụ: Áo Polo Thể Thao Promax" 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
+                  <Form.Control type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Áo Polo Coolmate" />
                 </Form.Group>
-                <Form.Group className="mb-3" controlId="productDescription">
-                  <Form.Label>Mô tả</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
-                    rows={5} 
-                    placeholder="Mô tả chi tiết, chất liệu,..." 
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
+                
+                <Form.Group className="mb-3">
+                  <Form.Label>Giới tính (*)</Form.Label>
+                  <div className="d-flex gap-3">
+                    <Form.Check type="radio" label="Nam (Men)" name="gender" id="genderMen" checked={gender === 'Men'} onChange={() => setGender('Men')} />
+                    <Form.Check type="radio" label="Nữ (Women)" name="gender" id="genderWomen" checked={gender === 'Women'} onChange={() => setGender('Women')} />
+                    <Form.Check type="radio" label="Unisex" name="gender" id="genderUnisex" checked={gender === 'Unisex'} onChange={() => setGender('Unisex')} />
+                  </div>
                 </Form.Group>
+
                 <Row>
                   <Col md={6}>
-                    <Form.Group className="mb-3" controlId="mainCategory">
-                      <Form.Label>Danh mục chính (*)</Form.Label>
-                      <Form.Select 
-                        value={mainCategory}
-                        onChange={(e) => setMainCategory(e.target.value)}
-                      >
-                        <option value="Áo">Áo</option>
-                        <option value="Quần">Quần</option>
-                        <option value="Phụ kiện">Phụ kiện</option>
+                    <Form.Group className="mb-3"><Form.Label>Danh mục chính</Form.Label>
+                      <Form.Select value={mainCategory} onChange={e => setMainCategory(e.target.value)}>
+                        <option value="Áo">Áo</option><option value="Quần">Quần</option><option value="Phụ kiện">Phụ kiện</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    <Form.Group className="mb-3" controlId="subCategory">
-                      <Form.Label>Danh mục phụ (*)</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        placeholder="Ví dụ: Áo Polo, Quần Jean" 
-                        value={subCategory}
-                        onChange={(e) => setSubCategory(e.target.value)}
-                        required
-                      />
+                    <Form.Group className="mb-3"><Form.Label>Danh mục phụ (*)</Form.Label>
+                      <Form.Control type="text" required value={subCategory} onChange={e => setSubCategory(e.target.value)} placeholder="Ví dụ: Áo thun, Quần Jean" />
                     </Form.Group>
                   </Col>
+                </Row>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Mô tả chi tiết</Form.Label>
+                  <Form.Control as="textarea" rows={4} value={description} onChange={e => setDescription(e.target.value)} />
+                </Form.Group>
+
+                <Row>
+                    <Col md={6}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Giá bán chung (VND)</Form.Label>
+                            <Form.Control type="number" required value={basePrice} onChange={e => setBasePrice(e.target.value)} />
+                        </Form.Group>
+                    </Col>
+                    
+                    {/* --- CẬP NHẬT Ô MÃ SKU --- */}
+                    <Col md={6}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Mã SKU gốc (Prefix)</Form.Label>
+                            <Form.Control 
+                                type="text" 
+                                required 
+                                value={baseSku} 
+                                onChange={e => setBaseSku(e.target.value)} 
+                                placeholder="VD: POLO-01" 
+                                isInvalid={!!skuError} // Viền đỏ nếu lỗi
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {skuError}
+                            </Form.Control.Feedback>
+                        </Form.Group>
+                    </Col>
+                    {/* ------------------------ */}
                 </Row>
               </Card.Body>
             </Card>
 
-            {/* --- Biến thể đầu tiên (Inventory) --- */}
-            <Card className="mb-3">
-              <Card.Header as="h5">Biến thể đầu tiên (Inventory)</Card.Header>
+            <Card className="mb-4 shadow-sm">
+              <Card.Header as="h5" className="bg-white py-3">2. Chọn Màu & Size</Card.Header>
               <Card.Body>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="sku">
-                      <Form.Label>SKU (Mã sản phẩm) (*)</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        placeholder="POLO-BLK-S" 
-                        value={sku}
-                        onChange={(e) => setSku(e.target.value)}
-                        required 
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                     <Form.Group className="mb-3" controlId="price">
-                      <Form.Label>Giá (VND) (*)</Form.Label>
-                      <Form.Control 
-                        type="number" 
-                        placeholder="349000" 
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
-                        required 
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3" controlId="color">
-                      <Form.Label>Màu sắc (*)</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        placeholder="Đen" 
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        required 
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                     <Form.Group className="mb-3" controlId="size">
-                      <Form.Label>Kích cỡ (*)</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        placeholder="S" 
-                        value={size}
-                        onChange={(e) => setSize(e.target.value)}
-                        required 
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
+                <div className="mb-4">
+                    <Form.Label className="fw-bold d-block mb-2">Chọn các Size có sẵn:</Form.Label>
+                    <div className="d-flex flex-wrap gap-2">
+                        {AVAILABLE_SIZES.map(size => (
+                            <div key={size} className="position-relative">
+                                <input type="checkbox" className="btn-check" id={`btn-check-size-${size}`} autoComplete="off" checked={selectedSizes.includes(size)} onChange={() => toggleSize(size)} />
+                                <label className="btn btn-outline-secondary" htmlFor={`btn-check-size-${size}`}>{size}</label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <hr className="my-4"/>
+                <div className="mb-2">
+                    <Form.Label className="fw-bold d-block mb-2">Chọn các Màu có sẵn:</Form.Label>
+                    <div className="d-flex flex-wrap gap-3">
+                        {AVAILABLE_COLORS.map(c => (
+                            <Form.Check key={c.name} inline type="checkbox" id={`color-${c.name}`} checked={selectedColors.includes(c.name)} onChange={() => toggleColor(c.name)}
+                                label={<span className="d-flex align-items-center"><span className="rounded-circle border me-2" style={{width: 20, height: 20, backgroundColor: c.hex}}></span>{c.name}</span>}
+                            />
+                        ))}
+                    </div>
+                </div>
               </Card.Body>
             </Card>
+
+            {generatedVariants.length > 0 && (
+                <Card className="mb-4 shadow-sm border-primary">
+                    <Card.Header as="h5" className="bg-primary text-white py-3">3. Chi tiết Tồn kho & Giá</Card.Header>
+                    <Card.Body className="p-0">
+                        <Table responsive hover className="mb-0 text-center align-middle">
+                            <thead className="bg-light">
+                                <tr>
+                                    <th className="py-3">Biến thể</th>
+                                    <th style={{width: '25%'}}>SKU (Tự động)</th>
+                                    <th style={{width: '25%'}}>Giá (VND)</th>
+                                    <th style={{width: '20%'}}>Số lượng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {generatedVariants.map((v, index) => (
+                                    <tr key={`${v.color}-${v.size}`}>
+                                        <td className="fw-bold text-start ps-4">{v.color} / {v.size}</td>
+                                        <td><Form.Control size="sm" type="text" value={v.sku} onChange={(e) => handleVariantChange(index, 'sku', e.target.value)} /></td>
+                                        <td><Form.Control size="sm" type="number" value={v.price} onChange={(e) => handleVariantChange(index, 'price', e.target.value)} /></td>
+                                        <td><Form.Control size="sm" type="number" value={v.quantity} onChange={(e) => handleVariantChange(index, 'quantity', e.target.value)} className={v.quantity > 0 ? '' : 'border-danger'} /></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Card.Body>
+                </Card>
+            )}
           </Col>
           
-          {/* ============ CỘT PHẢI (Ảnh & Tồn kho) ============ */}
-          <Col md={4}>
-            <Card className="mb-3">
-              <Card.Header as="h5">Ảnh sản phẩm (*)</Card.Header>
+          <Col lg={4}>
+             <Card className="mb-3 shadow-sm sticky-top" style={{top: '20px', zIndex: 100}}>
+              <Card.Header as="h5" className="bg-white py-3">4. Ảnh sản phẩm (*)</Card.Header>
               <Card.Body>
-                {/* --- Dropzone Component --- */}
-                <div 
-                  {...getRootProps()} 
-                  className={`dropzone p-5 text-center border border-2 border-dashed rounded ${isDragActive ? 'border-primary bg-light' : 'border-secondary'}`}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <input {...getInputProps()} />
-                  <CloudUpload size={48} className="text-muted mb-3 mx-auto" />
-                  <p className="text-muted mb-1">Kéo thả ảnh vào đây hoặc</p>
-                  <Button variant="outline-dark" size="sm">Chọn ảnh</Button>
-                  <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.8rem' }}>
-                    PNG, JPG, WEBP lên đến 10MB
-                  </p>
-                </div>
-                {fileRejectionItems.length > 0 && (
-                  <Alert variant="danger" className="mt-3">
-                    {fileRejectionItems}
-                  </Alert>
+                <p className="text-muted small mb-3">Vui lòng chọn 1 ảnh đại diện cho mỗi màu bạn đã chọn.</p>
+                {selectedColors.length === 0 ? (
+                    <Alert variant="light" className="text-center text-muted border-dashed">Chưa chọn màu nào.</Alert>
+                ) : (
+                    selectedColors.map(color => (
+                        <ColorImageUpload key={color} colorName={color} currentPreview={colorPreviews[color]} onImageSelect={handleImageSelect} />
+                    ))
                 )}
-                {/* --- Hiển thị Preview ảnh --- */}
-                {preview && (
-                  <div className="mt-3 text-center">
-                    <p className="mb-2">Xem trước ảnh:</p>
-                    <Image src={preview} fluid thumbnail style={{ maxHeight: '200px', objectFit: 'contain' }} />
-                  </div>
-                )}
-              </Card.Body>
-            </Card>
-            
-            <Card className="mb-3">
-              <Card.Header as="h5">Tồn kho ban đầu (*)</Card.Header>
-              <Card.Body>
-                <Form.Group controlId="quantity">
-                  <Form.Label>Số lượng (tại kho chính)</Form.Label>
-                  <Form.Control 
-                    type="number" 
-                    placeholder="100" 
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    required 
-                  />
-                  <Form.Text className="text-muted">
-                    (Sẽ gán vào cửa hàng đầu tiên tìm thấy)
-                  </Form.Text>
-                </Form.Group>
+                {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+                <hr className="my-4" />
+                <Button variant="dark" type="submit" size="lg" className="w-100 py-3 fw-bold" disabled={loading || !!skuError}>
+                    {loading ? <><Spinner as="span" animation="border" size="sm" className="me-2" />Đang xử lý...</> : 'LƯU SẢN PHẨM'}
+                </Button>
               </Card.Body>
             </Card>
           </Col>
         </Row>
-        
-        {/* Nút Submit */}
-        {error && <Alert variant="danger">{error}</Alert>}
-        <div className="mt-3 text-end">
-          <Button 
-            variant="dark" 
-            type="submit" 
-            disabled={loading}
-          >
-            {loading ? <Spinner as="span" animation="border" size="sm" /> : 'Tạo Sản phẩm'}
-          </Button>
-        </div>
-      </form>
+      </Form>
     </>
   );
 }

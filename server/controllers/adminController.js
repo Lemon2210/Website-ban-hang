@@ -37,24 +37,35 @@ const getAllProductsAdmin = async (req, res) => {
  * @desc    Tạo sản phẩm Gốc VÀ Biến thể đầu tiên
  * @access  Private/Admin
  */
+// ... (Các import và hàm khác giữ nguyên) ...
+
+/*
+ * @route   POST /api/admin/products
+ * @desc    Tạo sản phẩm Gốc VÀ NHIỀU Biến thể
+ * @access  Private/Admin
+ */
 const createProduct = async (req, res) => {
   try {
-    // 1. Lấy dữ liệu JSON từ req.body (do Form gửi lên)
-    const { 
-      name, description, mainCategory, subCategory, // (Product)
-      sku, price, color, size, quantity // (Inventory)
-    } = req.body;
-
-    // 2. Lấy URL ảnh từ Cloudinary (do 'uploadMiddleware' cung cấp)
-    if (!req.file) {
-      return res.status(400).json({ message: 'Vui lòng upload ảnh sản phẩm.' });
+    const { name, description, gender, mainCategory, subCategory, variants } = req.body;
+    
+    // req.files chứa tất cả các file ảnh đã upload (do upload.any() xử lý)
+    // Mỗi file sẽ có thuộc tính 'fieldname', ví dụ: 'image_Black', 'image_White'
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'Vui lòng upload ít nhất một ảnh.' });
     }
-    const imageUrl = req.file.path; // URL an toàn từ Cloudinary
 
-    // 3. Tạo Sản phẩm Gốc (Product)
+    let parsedVariants = [];
+    try {
+      parsedVariants = JSON.parse(variants);
+    } catch (e) {
+      return res.status(400).json({ message: 'Dữ liệu biến thể không hợp lệ.' });
+    }
+
+    // 1. Tạo Sản phẩm Gốc
     const newProduct = new Product({
       name,
       description,
+      gender, // <-- LƯU GENDER
       category: {
         main: mainCategory,
         sub: subCategory,
@@ -62,39 +73,72 @@ const createProduct = async (req, res) => {
     });
     const savedProduct = await newProduct.save();
 
-    // 4. Tạo Biến thể đầu tiên (Inventory)
-    // (Tìm một cửa hàng bất kỳ để gán tồn kho)
     const firstStore = await Store.findOne();
     if (!firstStore) {
-      return res.status(400).json({ message: 'Không tìm thấy cửa hàng nào để gán tồn kho.' });
+       return res.status(400).json({ message: 'Chưa có cửa hàng nào.' });
     }
 
-    const newInventory = new Inventory({
-      product: savedProduct._id, // Liên kết với Product vừa tạo
-      sku,
-      price: Number(price),
-      imageUrl,
-      attributes: {
-        color,
-        size,
-      },
-      stock: [ // Gán số lượng tồn kho đầu tiên
-        {
-          store: firstStore._id,
-          quantity: Number(quantity)
-        }
-      ]
+    // 2. Tạo Biến thể và Gán ảnh theo màu
+    const inventoryPromises = parsedVariants.map((variant) => {
+      
+      // LOGIC MỚI: Tìm ảnh tương ứng với màu của biến thể này
+      // Frontend sẽ gửi file với fieldname là: "image_TênMàu" (ví dụ: image_Black)
+      const colorImageFile = req.files.find(
+        (file) => file.fieldname === `image_${variant.color}`
+      );
+
+      // Nếu tìm thấy ảnh riêng cho màu này thì dùng, không thì dùng ảnh đầu tiên làm fallback
+      const finalImageUrl = colorImageFile ? colorImageFile.path : req.files[0].path;
+
+      return new Inventory({
+        product: savedProduct._id,
+        sku: variant.sku,
+        price: Number(variant.price),
+        imageUrl: finalImageUrl, // <-- URL ảnh đã map theo màu
+        attributes: {
+          color: variant.color,
+          size: variant.size,
+        },
+        stock: [
+          { store: firstStore._id, quantity: Number(variant.quantity) }
+        ]
+      }).save();
     });
-    
-    await newInventory.save();
+
+    await Promise.all(inventoryPromises);
 
     res.status(201).json({ message: 'Tạo sản phẩm thành công!', product: savedProduct });
 
   } catch (error) {
     console.error('Lỗi khi tạo sản phẩm:', error.message);
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    res.status(500).json({ message: 'Lỗi máy chủ: ' + error.message });
   }
 };
+
+const checkSku = async (req, res) => {
+  try {
+    const { sku } = req.body;
+    
+    if (!sku) return res.status(200).json({ exists: false });
+
+    // Logic: Kiểm tra xem có bất kỳ Inventory nào có SKU BẮT ĐẦU bằng chuỗi này không
+    // Ví dụ: Nếu DB có 'POLO-01-BLK-S', mà user nhập 'POLO-01', nó sẽ báo trùng.
+    const exists = await Inventory.findOne({ 
+      sku: { $regex: new RegExp(`^${sku}`, 'i') } 
+    });
+
+    if (exists) {
+      res.status(200).json({ exists: true });
+    } else {
+      res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error('Check SKU error:', error);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+};
+
+// ... (module.exports giữ nguyên) ...
 // --- (HẾT HÀM MỚI) ---
 
 
@@ -103,4 +147,5 @@ module.exports = {
   getAllOrders,
   getAllProductsAdmin,
   createProduct, // <-- Thêm hàm mới vào
+  checkSku, // <-- Thêm hàm checkSku vào
 };
