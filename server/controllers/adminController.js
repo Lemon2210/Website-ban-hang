@@ -138,6 +138,30 @@ const checkSku = async (req, res) => {
   }
 };
 
+const deleteInventory = async (req, res) => {
+  try {
+    const inventoryId = req.params.id;
+    
+    // 1. Tìm và xóa biến thể
+    const deletedItem = await Inventory.findByIdAndDelete(inventoryId);
+
+    if (!deletedItem) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm để xóa.' });
+    }
+
+    // (Tùy chọn nâng cao: Kiểm tra xem Product gốc còn biến thể nào không, nếu không thì xóa luôn Product gốc)
+    const remainingVariants = await Inventory.find({ product: deletedItem.product });
+    if (remainingVariants.length === 0) {
+        await Product.findByIdAndDelete(deletedItem.product);
+    }
+
+    res.status(200).json({ message: 'Đã xóa sản phẩm thành công.' });
+  } catch (error) {
+    console.error('Lỗi khi xóa sản phẩm:', error.message);
+    res.status(500).json({ message: 'Lỗi máy chủ: ' + error.message });
+  }
+};
+
 // ... (module.exports giữ nguyên) ...
 // --- (HẾT HÀM MỚI) ---
 
@@ -148,4 +172,5 @@ module.exports = {
   getAllProductsAdmin,
   createProduct, // <-- Thêm hàm mới vào
   checkSku, // <-- Thêm hàm checkSku vào
+  deleteInventory, // <-- Thêm hàm xóa biến thể vào
 };

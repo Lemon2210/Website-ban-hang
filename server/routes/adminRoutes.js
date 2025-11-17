@@ -6,7 +6,8 @@ const {
   getAllOrders, 
   getAllProductsAdmin,
   createProduct, // <-- Thêm hàm mới
-  checkSku
+  checkSku,
+  deleteInventory
 } = require('../controllers/adminController');
 
 // Import các "vệ sĩ"
@@ -25,6 +26,7 @@ router.get('/products', protect, admin, getAllProductsAdmin);
 
 router.post('/products/check-sku', protect, admin, checkSku);
 
+router.delete('/products/:id', protect, admin, deleteInventory);
 // --- (THÊM ROUTE MỚI NÀY VÀO) ---
 /*
  * @route   POST /api/admin/products
