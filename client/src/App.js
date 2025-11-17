@@ -23,6 +23,8 @@ import OrderListPage from './pages/admin/OrderListPage';
 import ProductCreatePage from './pages/admin/ProductCreatePage'; 
 import ProductEditPage from './pages/admin/ProductEditPage'; 
 
+import { CategoryPage } from './pages/customer/CategoryPage';
+
 
 // --- "VỆ SĨ" BẢO VỆ ROUTE ---
 const UserRoutes = () => {
@@ -80,6 +82,18 @@ function App() {
         {/* === 1. Bố cục Client (Mặc định) === */}
         <Route path="/" element={<ClientLayout />}>
           <Route index element={<HomePage />} />
+          <Route 
+          path="men" 
+          element={<CategoryPage gender="Men" title="Thời Trang Nam" />} 
+        />
+        <Route 
+          path="women" 
+          element={<CategoryPage gender="Women" title="Thời Trang Nữ" />} 
+        />
+        <Route 
+          path="accessories" 
+          element={<CategoryPage gender="Phụ kiện" title="Phụ Kiện & Đồ Dùng" />} 
+        />
           <Route path="product/:id" element={<ProductDetailPage />} />
           <Route 
             path="login" 

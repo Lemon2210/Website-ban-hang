@@ -21,7 +21,7 @@ function Footer() {
             <h5>CHÍNH SÁCH</h5>
             <Nav className="flex-column">
               <Nav.Link href="#" className="text-light p-0">Chính sách đổi trả 60 ngày</Nav.Link>
-              <Nav.Link href="#" className="text-light p-0">Chính sách khuyến mãi</Nav.Link>
+              
               <Nav.Link href="#" className="text-light p-0">Chính sách bảo mật</Nav.Link>
             </Nav>
           </Col>
@@ -29,7 +29,7 @@ function Footer() {
           <Col md={6} lg={3}>
             <h5>CHĂM SÓC KHÁCH HÀNG</h5>
             <Nav className="flex-column">
-              <Nav.Link href="#" className="text-light p-0">Hỏi đáp - FAQs</Nav.Link>
+              
               <Nav.Link href="#" className="text-light p-0">Hướng dẫn chọn size</Nav.Link>
               
             </Nav>

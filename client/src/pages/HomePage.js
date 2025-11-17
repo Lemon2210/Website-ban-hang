@@ -4,6 +4,8 @@ import { Container, Carousel, Row, Col, Button } from 'react-bootstrap';
 
 //banner
 import firstSlide from '../assets/images/nam.png';
+import secondSlide from '../assets/images/nu.png';
+import banner from '../assets/images/HomePage/Frame-88072td.png';
 
 // (Chúng ta sẽ tạo 2 file này ngay sau đây)
 import ProductCard from '../components/ProductCard';
@@ -84,7 +86,7 @@ function HomePage() {
           <a href="/collection/sale">
             <img
               className="d-block w-100"
-              src={firstSlide}
+              src={secondSlide}
               alt="Third slide"
             />
           </a>
@@ -100,17 +102,18 @@ function HomePage() {
       <Container fluid className="bg-primary text-light p-5 mb-5">
         <Row className="align-items-center">
           <Col md={6}>
-            <h1 className="display-4">ĐỒ CHẠY BỘ</h1>
-            <p>Sản phẩm mới của Lemon Fashion</p>
-            <Button variant="light" href="/phu-kien">MUA NGAY</Button>
+            <h1 className="display-4">HƯỚNG DẪN CHỌN SIZE</h1>
+            <p>Chọn size phù hợp với bạn</p>
+            <Button variant="light" href="/phu-kien">XEM NGAY</Button>
           </Col>
           <Col md={6}>
-            {/* (Bạn có thể thay <img> bằng hình của bạn) */}
+            {/* 
             <img 
-              src="https://via.placeholder.com/500x300/FFF/000?text=Hinh+Anh+Nguoi+Mau" 
+              src={banner}
               alt="Đồ chạy bộ" 
               className="img-fluid"
             />
+            */}
           </Col>
         </Row>
       </Container>
