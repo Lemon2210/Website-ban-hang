@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Image, Spinner, Alert, Badge, Row, Col, InputGroup, FormControl, Modal, Form } from 'react-bootstrap';
 import { PencilSquare, Trash, PlusLg, Search, Filter } from 'react-bootstrap-icons';
 import { Link } from 'react-router-dom';
-import api from '../../api'; // "Bộ não" API
+import api from '../../api'; 
 import { useAuth } from '../../context/AuthContext';
 
 function ProductListPage() {
@@ -10,6 +10,9 @@ function ProductListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // --- STATE TÌM KIẾM (MỚI) ---
+  const [searchTerm, setSearchTerm] = useState(''); // Lưu từ khóa tìm kiếm
+
   // --- STATE CHO MODAL XÓA ---
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
@@ -18,23 +21,18 @@ function ProductListPage() {
 
   const { user } = useAuth();
 
-  // --- 1. HÀM TẢI DỮ LIỆU TỪ API ---
+  // --- 1. HÀM TẢI DỮ LIỆU ---
   const fetchProductsAdmin = async () => {
     if (!user || !user.token) return;
-    
     try {
       setLoading(true);
-      const config = {
-        headers: { Authorization: `Bearer ${user.token}` },
-      };
-      // Gọi API lấy danh sách (Inventory + Product info)
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
       const { data } = await api.get('/admin/products', config);
       setProducts(data);
       setLoading(false);
     } catch (err) {
       setError('Không thể tải danh sách sản phẩm.');
       setLoading(false);
-      console.error(err);
     }
   };
 
@@ -43,37 +41,36 @@ function ProductListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // --- 2. LOGIC TÍNH TRẠNG THÁI TỒN KHO ---
+  // --- 2. LOGIC LỌC SẢN PHẨM (REALTIME SEARCH) ---
+  // Tạo ra một danh sách mới dựa trên từ khóa tìm kiếm
+  const filteredProducts = products.filter((item) => {
+    // Chuyển tất cả về chữ thường để tìm kiếm không phân biệt hoa/thường
+    const term = searchTerm.toLowerCase();
+    const name = item.product?.name?.toLowerCase() || '';
+    const sku = item.sku?.toLowerCase() || '';
+
+    // Kiểm tra xem Tên HOẶC SKU có chứa từ khóa không
+    return name.includes(term) || sku.includes(term);
+  });
+  // --------------------------------------------------
+
   const getStockInfo = (stockArray) => {
     if (!stockArray) return { totalStock: 0, status: "Hết hàng", variant: "danger" };
-
-    // Tính tổng số lượng từ tất cả các cửa hàng
     const totalStock = stockArray.reduce((acc, store) => acc + store.quantity, 0);
     
     let variant, status, text;
-
     if (totalStock > 50) {
-      variant = "success"; // Màu xanh
-      status = "Còn hàng";
+      variant = "success"; status = "Còn hàng";
     } else if (totalStock > 0 && totalStock <= 20) {
-      variant = "warning"; // Màu vàng
-      text = "dark"; // Chữ đen cho dễ đọc
-      status = "SL thấp";
+      variant = "warning"; text = "dark"; status = "SL thấp";
     } else if (totalStock === 0) {
-      variant = "danger"; // Màu đỏ
-      status = "Hết hàng";
+      variant = "danger"; status = "Hết hàng";
     } else {
-      // Trường hợp còn lại (21-50)
-      variant = "success";
-      status = "Còn hàng";
+      variant = "success"; status = "Còn hàng";
     }
-    
     return { totalStock, status, variant, text };
   };
 
-  // --- 3. CÁC HÀM XỬ LÝ XÓA ---
-
-  // Bấm nút Thùng rác -> Mở Modal
   const handleDeleteClick = (item) => {
     setProductToDelete(item);
     setConfirmSku('');
@@ -81,25 +78,18 @@ function ProductListPage() {
     setShowDeleteModal(true);
   };
 
-  // Bấm xác nhận trong Modal -> Gọi API Xóa
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
-
-    // Kiểm tra SKU nhập vào
     if (confirmSku !== productToDelete.sku) {
       setDeleteError('Mã SKU không khớp!');
       return;
     }
-
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      // Gọi API xóa biến thể
       await api.delete(`/admin/products/${productToDelete._id}`, config);
-      
-      // Thành công
       setShowDeleteModal(false);
       alert('Đã xóa sản phẩm thành công!');
-      fetchProductsAdmin(); // Tải lại danh sách
+      fetchProductsAdmin(); 
     } catch (err) {
       setDeleteError('Lỗi server: Không thể xóa sản phẩm.');
     }
@@ -109,7 +99,11 @@ function ProductListPage() {
   const renderContent = () => {
     if (loading) return <div className="text-center my-5"><Spinner animation="border" /></div>;
     if (error) return <Alert variant="danger">{error}</Alert>;
-    if (products.length === 0) return <div className="text-center my-5">Chưa có sản phẩm nào.</div>;
+    
+    // Nếu lọc xong mà không có sản phẩm nào
+    if (filteredProducts.length === 0) {
+        return <div className="text-center my-5 text-muted">Không tìm thấy sản phẩm nào khớp với "{searchTerm}".</div>;
+    }
 
     return (
       <Table striped bordered hover responsive className="align-middle">
@@ -125,12 +119,12 @@ function ProductListPage() {
           </tr>
         </thead>
         <tbody>
-          {products.map((item) => {
+          {/* LƯU Ý: Chúng ta dùng `filteredProducts` thay vì `products` */}
+          {filteredProducts.map((item) => {
             const { totalStock, status, variant, text } = getStockInfo(item.stock);
             
             return (
               <tr key={item._id}>
-                {/* Cột 1: Ảnh + Tên */}
                 <td>
                   <div className="d-flex align-items-center">
                     <Image 
@@ -147,29 +141,16 @@ function ProductListPage() {
                     </div>
                   </div>
                 </td>
-                
-                {/* Cột 2: SKU */}
                 <td>{item.sku}</td>
-                
-                {/* Cột 3: Danh mục (Sub category) */}
                 <td>{item.product?.category?.sub}</td>
-                
-                {/* Cột 4: Giá */}
                 <td>{item.price.toLocaleString('vi-VN')}₫</td>
-                
-                {/* Cột 5: Số lượng */}
                 <td>{totalStock}</td>
-                
-                {/* Cột 6: Trạng thái */}
                 <td>
                   <Badge bg={variant} text={text} className="px-2 py-1">
                     {status}
                   </Badge>
                 </td>
-                
-                {/* Cột 7: Chức năng */}
                 <td className="text-center">
-                  {/* Nút Sửa: Link đến trang Edit (Dùng ID của Product gốc) */}
                   <Button 
                     as={Link} 
                     to={`/admin/products/edit/${item.product?._id}`} 
@@ -180,8 +161,6 @@ function ProductListPage() {
                   >
                     <PencilSquare />
                   </Button>
-                  
-                  {/* Nút Xóa: Mở Modal */}
                   <Button 
                     variant="outline-danger" 
                     size="sm"
@@ -201,7 +180,6 @@ function ProductListPage() {
 
   return (
     <div>
-      {/* Header Trang */}
       <Row className="align-items-center mb-4">
         <Col>
           <h2 className="mb-1">Quản lý Sản phẩm</h2>
@@ -224,6 +202,9 @@ function ProductListPage() {
             <FormControl 
               placeholder="Tìm kiếm sản phẩm theo tên hoặc SKU..." 
               className="border-start-0 ps-0"
+              // --- KẾT NỐI INPUT VỚI STATE ---
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </InputGroup>
         </Col>
@@ -234,15 +215,13 @@ function ProductListPage() {
         </Col>
       </Row>
 
-      {/* Bảng Dữ liệu */}
       {renderContent()}
 
-      {/* --- MODAL XÁC NHẬN XÓA --- */}
       <Modal 
         show={showDeleteModal} 
         onHide={() => setShowDeleteModal(false)}
         centered
-        backdrop="static" // Bắt buộc bấm nút để đóng
+        backdrop="static"
       >
         <Modal.Header closeButton className="bg-danger text-white">
           <Modal.Title>Xác nhận Xóa Sản phẩm</Modal.Title>
@@ -266,7 +245,7 @@ function ProductListPage() {
               value={confirmSku}
               onChange={(e) => {
                 setConfirmSku(e.target.value);
-                setDeleteError(''); // Xóa lỗi khi gõ lại
+                setDeleteError('');
               }}
               isInvalid={!!deleteError}
               autoFocus
