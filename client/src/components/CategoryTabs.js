@@ -10,6 +10,12 @@ import hoodieImg from '../assets/images/categories/nam/hoodie.png';
 
 // nu
 import nuthethaoImg from '../assets/images/categories/nu/nuthethao.png';
+import quanthethaoImg from '../assets/images/categories/nu/nuquanthethao.png';
+import hoodienuImg from '../assets/images/categories/nu/hoodienu.png';
+import braleggingsImg from '../assets/images/categories/nu/bra.png';
+import vaythethaoImg from '../assets/images/categories/nu/vaynu.png';
+import vaydamImg from '../assets/images/categories/nu/nudam.png';
+
 
 // (Đây là dữ liệu tĩnh, bạn có thể thay thế sau)
 const categoriesNam = [
@@ -23,11 +29,11 @@ const categoriesNam = [
 
 const categoriesNu = [
   { name: 'ÁO THỂ THAO', img: nuthethaoImg },
-  { name: 'QUẦN THỂ THAO', img: 'https://via.placeholder.com/200x250' },
-  { name: 'HOODIE & SWEATER', img: 'https://via.placeholder.com/200x250' },
-  { name: 'BRA & LEGGINGS', img: 'https://via.placeholder.com/200x250' },
-  { name: 'VÁY THỂ THAO', img: 'https://via.placeholder.com/200x250' },
-  { name: 'PHỤ KIỆN', img: 'https://via.placeholder.com/200x250' },
+  { name: 'QUẦN THỂ THAO', img: quanthethaoImg },
+  { name: 'HOODIE & SWEATER', img: hoodienuImg },
+  { name: 'BRA & LEGGINGS', img: braleggingsImg },
+  { name: 'VÁY THỂ THAO', img: vaythethaoImg },
+  { name: 'VÁY ĐẦM', img: vaydamImg },
 ];
 
 function CategoryTabs() {

@@ -14,10 +14,10 @@ function Footer() {
             <Nav className="flex-column">
               <LinkContainer to="/profile">
                 <Nav.Link href="/profile" className="text-light p-0">Tài khoản Lemon</Nav.Link>
-               </LinkContainer>
-               <LinkContainer to="/login">
+              </LinkContainer>
+              <LinkContainer to="/login">
                 <Nav.Link href="/login" className="text-light p-0">Đăng kí thành viên</Nav.Link>
-               </LinkContainer>
+              </LinkContainer>
             </Nav>
           </Col>
 
