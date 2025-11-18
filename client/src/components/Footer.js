@@ -1,6 +1,7 @@
 import React from 'react';
 import { Container, Row, Col, Nav } from 'react-bootstrap';
 import { Facebook, Youtube, Instagram } from 'react-bootstrap-icons';
+import { LinkContainer } from 'react-router-bootstrap';
 
 // (Đây là layout mô phỏng lại ảnh footer của bạn)
 function Footer() {
@@ -11,9 +12,12 @@ function Footer() {
           <Col md={6} lg={3}>
             <h5>LEMON FASHION</h5>
             <Nav className="flex-column">
-              <Nav.Link href="#" className="text-light p-0">Tài khoản Lemon</Nav.Link>
-              <Nav.Link href="#" className="text-light p-0">Đăng kí thành viên</Nav.Link>
-              
+              <LinkContainer to="/profile">
+                <Nav.Link href="/profile" className="text-light p-0">Tài khoản Lemon</Nav.Link>
+               </LinkContainer>
+               <LinkContainer to="/login">
+                <Nav.Link href="/login" className="text-light p-0">Đăng kí thành viên</Nav.Link>
+               </LinkContainer>
             </Nav>
           </Col>
 
@@ -38,9 +42,8 @@ function Footer() {
           <Col md={6} lg={3}>
             <h5>ĐỊA CHỈ LIÊN HỆ</h5>
             <address className="text-light" style={{ fontSize: '0.9rem' }}>
-              Văn phòng Hà Nội: Tầng 3-4, Tòa nhà BMM...<br />
-              Trung tâm vận hành: Lô C8, KCN Lai Xá...<br />
-              Văn phòng TPHCM: Lô C3, đường D2...
+              
+              Văn phòng TPHCM: 180 Cao Lỗ, phường 4, quận 8, TPHCM
             </address>
             <div>
               <Nav.Link href="#" className="text-light d-inline-block p-2 me-2"><Facebook size={20} /></Nav.Link>

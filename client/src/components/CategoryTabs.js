@@ -1,11 +1,15 @@
 import React from 'react';
 import { Tabs, Tab, Row, Col, Card } from 'react-bootstrap';
+// nam
 import aokhoacImg from '../assets/images/categories/nam/aokhoac.png';
 import aodaitayImg from '../assets/images/categories/nam/aotaydai.png';
 import poloImg from '../assets/images/categories/nam/polo.png';
 import somiImg from '../assets/images/categories/nam/somi.png';
 import athunImg from '../assets/images/categories/nam/aothun.png';
 import hoodieImg from '../assets/images/categories/nam/hoodie.png';
+
+// nu
+import nuthethaoImg from '../assets/images/categories/nu/nuthethao.png';
 
 // (Đây là dữ liệu tĩnh, bạn có thể thay thế sau)
 const categoriesNam = [
@@ -18,7 +22,7 @@ const categoriesNam = [
 ];
 
 const categoriesNu = [
-  { name: 'ÁO THỂ THAO', img: 'https://via.placeholder.com/200x250' },
+  { name: 'ÁO THỂ THAO', img: nuthethaoImg },
   { name: 'QUẦN THỂ THAO', img: 'https://via.placeholder.com/200x250' },
   { name: 'HOODIE & SWEATER', img: 'https://via.placeholder.com/200x250' },
   { name: 'BRA & LEGGINGS', img: 'https://via.placeholder.com/200x250' },

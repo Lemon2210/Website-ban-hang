@@ -5,6 +5,8 @@ import { Container, Carousel, Row, Col, Button } from 'react-bootstrap';
 //banner
 import firstSlide from '../assets/images/nam.png';
 import secondSlide from '../assets/images/nu.png';
+import thirdSlide from '../assets/images/bannernam.png';
+import fourthSlide from '../assets/images/walk.png';
 import banner from '../assets/images/HomePage/Frame-88072td.png';
 
 // (Chúng ta sẽ tạo 2 file này ngay sau đây)
@@ -65,19 +67,19 @@ function HomePage() {
       <Carousel interval={2000} className="mb-5">
         <Carousel.Item>
           {/* (Chúng ta sẽ thay bằng Link của react-router-dom sau) */}
-          <a href="/collection/fall-winter">
+          <a href="/men">
             <img
               className="d-block w-100"
-              src={firstSlide}
+              src={thirdSlide}
               alt="First slide"
             />
           </a>
         </Carousel.Item>
         <Carousel.Item>
-          <a href="/collection/new-arrivals">
+          <a href="/women">
             <img
               className="d-block w-100"
-              src={firstSlide}
+              src={secondSlide}
               alt="Second slide"
             />
           </a>
@@ -86,7 +88,7 @@ function HomePage() {
           <a href="/collection/sale">
             <img
               className="d-block w-100"
-              src={secondSlide}
+              src={fourthSlide}
               alt="Third slide"
             />
           </a>
