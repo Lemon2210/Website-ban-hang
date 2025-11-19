@@ -24,6 +24,7 @@ import ProductCreatePage from './pages/admin/ProductCreatePage';
 import ProductEditPage from './pages/admin/ProductEditPage'; 
 
 import { CategoryPage } from './pages/customer/CategoryPage';
+import SearchResultsPage from './pages/customer/SearchResultsPage';
 
 
 // --- "VỆ SĨ" BẢO VỆ ROUTE ---
@@ -95,6 +96,7 @@ function App() {
           element={<CategoryPage gender="Phụ kiện" title="Phụ Kiện & Đồ Dùng" />} 
         />
           <Route path="product/:id" element={<ProductDetailPage />} />
+          <Route path="search" element={<SearchResultsPage />} />
           <Route 
             path="login" 
             element={!user ? <LoginPage /> : <Navigate to="/" replace />} 

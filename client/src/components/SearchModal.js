@@ -57,23 +57,19 @@ function SearchModal({ show, onHide }) {
 
   // --- 3. XỬ LÝ KHI NHẤN TÌM KIẾM (ENTER HOẶC NÚT) ---
   const handleSearchSubmit = (e) => {
-    e?.preventDefault(); // Ngăn form reload
+    e?.preventDefault();
     if (!searchTerm.trim()) return;
 
-    // Cập nhật lịch sử (Logic FIFO: Mới nhất lên đầu, tối đa 5)
-    // Lọc bỏ từ khóa trùng lặp cũ trước khi thêm mới
+    // (Phần lưu lịch sử giữ nguyên)
     let newHistory = [searchTerm, ...searchHistory.filter(h => h !== searchTerm)];
-    if (newHistory.length > 5) {
-      newHistory = newHistory.slice(0, 5); // Chỉ giữ 5 cái đầu
-    }
-
+    if (newHistory.length > 5) newHistory = newHistory.slice(0, 5);
     setSearchHistory(newHistory);
     localStorage.setItem('searchHistory', JSON.stringify(newHistory));
 
-    // Chuyển đến trang kết quả tìm kiếm (Chúng ta sẽ tạo trang này sau nếu cần)
-    // navigate(`/search?q=${searchTerm}`);
+    // --- CHUYỂN HƯỚNG SANG TRANG KẾT QUẢ ---
+    navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
     
-    // Tạm thời đóng modal
+    // Đóng modal
     onHide();
   };
 

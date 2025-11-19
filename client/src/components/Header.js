@@ -42,9 +42,11 @@ function Header() {
               <LinkContainer to="/women">
                 <Nav.Link>Đồ Nữ</Nav.Link>
               </LinkContainer>
+              {/*
               <LinkContainer to="/accessories">
                 <Nav.Link>Phụ Kiện</Nav.Link>
               </LinkContainer>
+              */}
             </Nav>
 
             {/* Các icon bên phải */}
