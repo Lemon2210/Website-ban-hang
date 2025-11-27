@@ -285,8 +285,34 @@ const updateUserRole = async (req, res) => {
   }
 };
 
-// ... (module.exports giữ nguyên) ...
-// --- (HẾT HÀM MỚI) ---
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body; // Lấy trạng thái mới (ví dụ: 'Shipping')
+    const orderId = req.params.id;
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+    }
+
+    // Cập nhật trạng thái
+    order.status = status;
+
+    // (Tùy chọn: Nếu trạng thái là 'Delivered', cập nhật luôn isPaid = true nếu muốn)
+    if (status === 'Delivered') {
+        order.isPaid = true;
+        order.paidAt = Date.now();
+    }
+
+    const updatedOrder = await order.save();
+    res.status(200).json(updatedOrder);
+
+  } catch (error) {
+    console.error('Lỗi cập nhật trạng thái:', error.message);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
 
 
 // --- (CẬP NHẬT DÒNG EXPORT) ---
@@ -299,4 +325,5 @@ module.exports = {
   updateProduct,
   getAllUsers,
   updateUserRole,
+  updateOrderStatus,
 };

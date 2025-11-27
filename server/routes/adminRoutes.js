@@ -5,12 +5,13 @@ const router = express.Router();
 const { 
   getAllOrders, 
   getAllProductsAdmin,
-  createProduct, // <-- Thêm hàm mới
+  createProduct,
   checkSku,
   deleteInventory,
   updateProduct,
   getAllUsers,
-  updateUserRole
+  updateUserRole,
+  updateOrderStatus
 } = require('../controllers/adminController');
 
 // Import các "vệ sĩ"
@@ -21,6 +22,8 @@ const upload = require('../middleware/uploadMiddleware'); // <-- IMPORT VỆ SĨ
  * @route   GET /api/admin/orders
  */
 router.get('/orders', protect, admin, getAllOrders);
+
+router.put('/orders/:id/status', protect, admin, updateOrderStatus);
 
 /*
  * @route   GET /api/admin/products

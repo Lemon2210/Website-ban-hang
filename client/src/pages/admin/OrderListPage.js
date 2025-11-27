@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Badge, Spinner, Alert, Row, Col, InputGroup, FormControl, Card, Form } from 'react-bootstrap';
-import { Search, Filter, Eye, CheckCircle, XCircle } from 'react-bootstrap-icons';
+import { Search, Filter, Eye } from 'react-bootstrap-icons';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
+// Import toast để thông báo đẹp
+import { toast } from 'sonner';
 
 function OrderListPage() {
   const [orders, setOrders] = useState([]);
@@ -51,7 +53,28 @@ function OrderListPage() {
     return orderId.includes(term) || customerName.includes(term) || customerEmail.includes(term);
   });
 
-  // --- 3. HÀM HELPER ---
+  // --- 3. HÀM XỬ LÝ CẬP NHẬT TRẠNG THÁI ---
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+      };
+
+      // Gọi API PUT để cập nhật trạng thái
+      await api.put(`/admin/orders/${orderId}/status`, { status: newStatus }, config);
+      
+      toast.success(`Đã cập nhật trạng thái đơn hàng thành: ${newStatus}`);
+      
+      // Tải lại danh sách đơn hàng để cập nhật giao diện (hoặc có thể cập nhật state local để nhanh hơn)
+      fetchOrders();
+
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi khi cập nhật trạng thái.');
+    }
+  };
+
+  // --- 4. HÀM HELPER UI ---
   
   // Định dạng ngày
   const formatDate = (dateString) => {
@@ -61,7 +84,7 @@ function OrderListPage() {
     });
   };
 
-  // Màu trạng thái
+  // Màu trạng thái (Badge)
   const getStatusBadge = (status) => {
     switch (status) {
         case 'Pending': return <Badge bg="warning" text="dark">Chờ xử lý</Badge>;
@@ -73,13 +96,7 @@ function OrderListPage() {
     }
   };
 
-  // (Chức năng cập nhật trạng thái sẽ làm sau)
-  const handleStatusChange = async (orderId, newStatus) => {
-    // TODO: Gọi API PUT /api/admin/orders/:id/status
-    alert(`Chức năng cập nhật trạng thái thành "${newStatus}" đang phát triển.`);
-  };
-
-  // --- 4. RENDER GIAO DIỆN ---
+  // --- 5. RENDER GIAO DIỆN ---
   const renderContent = () => {
     if (loading) return <div className="text-center my-5"><Spinner animation="border" /></div>;
     if (error) return <Alert variant="danger">{error}</Alert>;
@@ -98,7 +115,7 @@ function OrderListPage() {
                     <th>Ngày đặt</th>
                     <th>Tổng tiền</th>
                     <th>Thanh toán</th>
-                    <th>Trạng thái</th>
+                    <th>Trạng thái (Click để đổi)</th>
                     <th className="text-center">Hành động</th>
                 </tr>
                 </thead>
@@ -119,9 +136,32 @@ function OrderListPage() {
                                 {order.paymentMethod}
                             </Badge>
                         </td>
-                        <td>
-                            {getStatusBadge(order.status || 'Pending')}
+                        
+                        {/* --- CỘT TRẠNG THÁI (Dropdown) --- */}
+                        <td style={{width: '180px'}}>
+                            <Form.Select 
+                                size="sm"
+                                value={order.status}
+                                onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                style={{ 
+                                    borderColor: 
+                                        order.status === 'Pending' ? '#ffc107' :
+                                        order.status === 'Shipping' ? '#0d6efd' :
+                                        order.status === 'Delivered' ? '#198754' : '#dc3545',
+                                    fontWeight: '500',
+                                    color: order.status === 'Pending' ? '#856404' : 
+                                           order.status === 'Delivered' ? '#0f5132' : '#000'
+                                }}
+                            >
+                                <option value="Pending">Chờ xử lý</option>
+                                <option value="Processing">Đang chuẩn bị</option>
+                                <option value="Shipping">Đang giao</option>
+                                <option value="Delivered">Đã giao</option>
+                                <option value="Cancelled">Đã hủy</option>
+                            </Form.Select>
                         </td>
+                        {/* --------------------------------- */}
+
                         <td className="text-center">
                             <Button variant="outline-dark" size="sm" title="Xem chi tiết">
                                 <Eye />
