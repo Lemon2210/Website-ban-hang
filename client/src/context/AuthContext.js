@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import api from '../api';
+import api from '../api'; // Dùng 'api' thay vì 'axios' trực tiếp
 
 const AuthContext = createContext();
 
@@ -8,13 +8,14 @@ export const AuthProvider = ({ children }) => {
     JSON.parse(localStorage.getItem('userInfo')) || null
   );
 
-  // Hàm Đăng nhập (Giữ nguyên)
-  const login = async (email, password) => {
+  // --- (CẬP NHẬT: Nhận thêm captchaToken) ---
+  const login = async (email, password, captchaToken) => {
     try {
       const config = { headers: { 'Content-Type': 'application/json' } };
+      // Gửi kèm captchaToken
       const { data } = await api.post(
         '/auth/login',
-        { email, password },
+        { email, password, captchaToken }, 
         config
       );
 
@@ -22,25 +23,23 @@ export const AuthProvider = ({ children }) => {
       setUser(data);
       return { success: true, user: data };
     } catch (error) {
-      const message = "Email hoặc mật khẩu sai";
+      const message = error.response?.data?.message || "Email hoặc mật khẩu sai";
       return { success: false, message: message };
     }
   };
 
-  // Hàm Đăng ký (ĐÃ CẬP NHẬT)
-  const register = async (name, email, password) => {
+  // --- (CẬP NHẬT: Nhận thêm captchaToken) ---
+  const register = async (name, email, password, captchaToken) => {
      try {
       const config = { headers: { 'Content-Type': 'application/json' } };
-      // Chỉ gọi API để tạo user, không làm gì thêm
+      // Gửi kèm captchaToken
       const { data } = await api.post(
         '/auth/register',
-        { name, email, password },
+        { name, email, password, captchaToken },
         config
       );
 
-      // --- (ĐÃ XÓA 2 DÒNG TỰ ĐỘNG ĐĂNG NHẬP) ---
-      
-      return { success: true, user: data }; // Trả về thành công
+      return { success: true, user: data };
     } catch (error) {
        const message =
         error.response && error.response.data.message
@@ -50,7 +49,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Hàm Đăng xuất (Giữ nguyên)
   const logout = () => {
     localStorage.removeItem('userInfo');
     setUser(null);
@@ -63,7 +61,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Hook tùy chỉnh (Giữ nguyên)
 export const useAuth = () => {
   return useContext(AuthContext);
 };

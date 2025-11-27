@@ -1,18 +1,41 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const axios = require('axios'); // <-- Import axios để gọi Google
 
-// Hàm trợ giúp (giữ nguyên)
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
   });
 };
 
-// Hàm registerUser (giữ nguyên)
-const registerUser = async (req, res) => {
-  // ... (giữ nguyên code của bạn)
+// --- HÀM PHỤ TRỢ ĐỂ KIỂM TRA CAPTCHA ---
+const verifyCaptcha = async (token) => {
+  if (!token) return false;
+  
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
+
   try {
-    const { name, email, password } = req.body;
+    const { data } = await axios.post(url);
+    return data.success; // Trả về true nếu Google bảo OK
+  } catch (error) {
+    console.error("Lỗi verify captcha:", error);
+    return false;
+  }
+};
+// ---------------------------------------
+
+const registerUser = async (req, res) => {
+  try {
+    // 1. Lấy captchaToken từ frontend gửi lên
+    const { name, email, password, captchaToken } = req.body;
+
+    // 2. Kiểm tra Captcha
+    const isHuman = await verifyCaptcha(captchaToken);
+    if (!isHuman) {
+      return res.status(400).json({ message: 'Xác thực Robot thất bại!' });
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'Email đã tồn tại' });
@@ -35,11 +58,17 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Hàm loginUser (giữ nguyên)
 const loginUser = async (req, res) => {
-  // ... (giữ nguyên code của bạn)
   try {
-    const { email, password } = req.body;
+    // 1. Lấy captchaToken
+    const { email, password, captchaToken } = req.body;
+
+    // 2. Kiểm tra Captcha
+    const isHuman = await verifyCaptcha(captchaToken);
+    if (!isHuman) {
+      return res.status(400).json({ message: 'Vui lòng xác thực bạn không phải là Robot!' });
+    }
+
     const user = await User.findOne({ email });
     if (user && (await user.comparePassword(password))) {
       res.status(200).json({
@@ -58,31 +87,18 @@ const loginUser = async (req, res) => {
   }
 };
 
-// --- (THÊM HÀM MỚI NÀY VÀO) ---
-/*
- * @route   POST /api/auth/check-email
- * @desc    Kiểm tra xem email đã tồn tại chưa
- * @access  Public
- */
 const checkEmail = async (req, res) => {
   try {
     const { email } = req.body;
-    // Kiểm tra xem có email nào khớp không (không phân biệt hoa/thường)
     const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
-
     if (user) {
-      // Nếu tìm thấy, báo là đã tồn tại
       res.status(200).json({ exists: true });
     } else {
-      // Nếu không, báo là an toàn
       res.status(200).json({ exists: false });
     }
   } catch (error) {
     res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 };
-// --- (HẾT HÀM MỚI) ---
 
-
-// --- (CẬP NHẬT DÒNG NÀY) ---
-module.exports = { registerUser, loginUser, checkEmail }; // Thêm checkEmail vào
+module.exports = { registerUser, loginUser, checkEmail };
