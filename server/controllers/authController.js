@@ -10,16 +10,31 @@ const generateToken = (id) => {
 
 // --- HÀM PHỤ TRỢ ĐỂ KIỂM TRA CAPTCHA ---
 const verifyCaptcha = async (token) => {
-  if (!token) return false;
+  if (!token) {
+    console.log("❌ Lỗi: Không nhận được token từ Frontend");
+    return false;
+  }
   
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  
+  // Kiểm tra xem đã đọc được key từ .env chưa
+  if (!secretKey) {
+    console.log("❌ Lỗi: Server chưa đọc được RECAPTCHA_SECRET_KEY từ file .env");
+    return false;
+  }
+
+  console.log("... Đang gửi yêu cầu xác thực tới Google...");
+  
   const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
 
   try {
     const { data } = await axios.post(url);
-    return data.success; // Trả về true nếu Google bảo OK
+    
+    console.log("✅ Google phản hồi:", data); // <-- QUAN TRỌNG: Xem dòng này in ra gì
+
+    return data.success; 
   } catch (error) {
-    console.error("Lỗi verify captcha:", error);
+    console.error("❌ Lỗi kết nối tới Google:", error.message);
     return false;
   }
 };
