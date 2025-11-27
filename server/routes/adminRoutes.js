@@ -8,7 +8,9 @@ const {
   createProduct, // <-- Thêm hàm mới
   checkSku,
   deleteInventory,
-  updateProduct // <-- Thêm hàm cập nhật sản phẩm
+  updateProduct,
+  getAllUsers,
+  updateUserRole
 } = require('../controllers/adminController');
 
 // Import các "vệ sĩ"
@@ -28,7 +30,9 @@ router.get('/products', protect, admin, getAllProductsAdmin);
 router.post('/products/check-sku', protect, admin, checkSku);
 
 router.delete('/products/:id', protect, admin, deleteInventory);
-// --- (THÊM ROUTE MỚI NÀY VÀO) ---
+// QUẢN LÝ TÀI KHOẢN
+router.get('/users', protect, admin, getAllUsers);
+router.put('/users/:id/role', protect, admin, updateUserRole);
 /*
  * @route   POST /api/admin/products
  * @desc    Tạo sản phẩm mới

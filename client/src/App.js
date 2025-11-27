@@ -21,7 +21,8 @@ import DashboardPage from './pages/admin/DashboardPage';
 import ProductListPage from './pages/admin/ProductListPage';
 import OrderListPage from './pages/admin/OrderListPage';
 import ProductCreatePage from './pages/admin/ProductCreatePage'; 
-import ProductEditPage from './pages/admin/ProductEditPage'; 
+import ProductEditPage from './pages/admin/ProductEditPage';
+import UserListPage from './pages/admin/UserListPage';
 
 import { CategoryPage } from './pages/customer/CategoryPage';
 import SearchResultsPage from './pages/customer/SearchResultsPage';
@@ -122,6 +123,7 @@ function App() {
             <Route path="products/add" element={<ProductCreatePage />} /> 
             <Route path="products/edit/:id" element={<ProductEditPage />} /> 
             <Route path="orders" element={<OrderListPage />} />
+            <Route path="users" element={<UserListPage />} />
           </Route>
         </Route>
         

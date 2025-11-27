@@ -3,12 +3,10 @@ import { Nav } from 'react-bootstrap';
 // Dùng LinkContainer để Nav.Link không F5 lại trang
 import { LinkContainer } from 'react-router-bootstrap'; 
 // Icons
-import { HouseDoor, BoxSeam, ListCheck, Gear } from 'react-bootstrap-icons';
+import { HouseDoor, BoxSeam, ListCheck, Gear, People } from 'react-bootstrap-icons';
 
 function AdminSidebar() {
   return (
-    // Dùng class 'vh-100' (viewport height 100) để nó cao hết màn hình
-    // 'position-fixed' để nó đứng yên khi cuộn
     <div 
       className="bg-dark text-white p-3 position-fixed" 
       style={{ width: '250px', height: '100vh' }}
@@ -36,6 +34,13 @@ function AdminSidebar() {
           <Nav.Link className="text-white d-flex align-items-center mb-2">
             <ListCheck size={20} className="me-2" />
             Quản lý Đơn hàng
+          </Nav.Link>
+        </LinkContainer>
+
+        <LinkContainer to="/admin/users">
+          <Nav.Link className="text-white d-flex align-items-center mb-2">
+            <People size={20} className="me-2" />
+            Quản lý tài khoản
           </Nav.Link>
         </LinkContainer>
         

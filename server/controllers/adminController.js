@@ -1,7 +1,8 @@
 const Order = require('../models/Order');
 const Inventory = require('../models/Inventory');
 const Product = require('../models/Product');
-const Store = require('../models/Store'); // <-- THÊM DÒNG NÀY (Rất quan trọng)
+const Store = require('../models/Store');
+const User = require('../models/User');
 
 /*
  * (Hàm getAllOrders giữ nguyên)
@@ -244,6 +245,46 @@ const updateProduct = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    // Lấy tất cả user nhưng TRỪ trường password ra
+    const users = await User.find({}).select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách user:', error.message);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
+const updateUserRole = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+        return res.status(404).json({ message: 'Người dùng không tồn tại' });
+    }
+
+    // Cập nhật role mới từ body (ví dụ: 'admin' hoặc 'user')
+    user.role = req.body.role;
+    
+    const updatedUser = await user.save();
+
+    res.status(200).json({ 
+        message: `Đã cập nhật quyền thành công cho ${updatedUser.name}`, 
+        user: {
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            role: updatedUser.role
+        }
+    });
+
+  } catch (error) {
+    console.error('Lỗi khi cập nhật quyền:', error.message);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
 // ... (module.exports giữ nguyên) ...
 // --- (HẾT HÀM MỚI) ---
 
@@ -255,5 +296,7 @@ module.exports = {
   createProduct, // <-- Thêm hàm mới vào
   checkSku, // <-- Thêm hàm checkSku vào
   deleteInventory, // <-- Thêm hàm xóa biến thể vào
-  updateProduct // <-- Thêm hàm cập nhật sản phẩm vào
+  updateProduct,
+  getAllUsers,
+  updateUserRole,
 };
