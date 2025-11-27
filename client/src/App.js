@@ -23,6 +23,7 @@ import OrderListPage from './pages/admin/OrderListPage';
 import ProductCreatePage from './pages/admin/ProductCreatePage'; 
 import ProductEditPage from './pages/admin/ProductEditPage';
 import UserListPage from './pages/admin/UserListPage';
+import { CheckoutPage } from './pages/CheckoutPage';
 
 import { CategoryPage } from './pages/customer/CategoryPage';
 import SearchResultsPage from './pages/customer/SearchResultsPage';
@@ -104,6 +105,7 @@ function App() {
           />
           <Route element={<UserRoutes />}>
             <Route path="cart" element={<CartPage />} /> 
+            <Route path="checkout" element={<CheckoutPage />} />
           </Route>
         </Route>
 
