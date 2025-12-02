@@ -3,7 +3,7 @@ import { Container, Table, Button, Badge, Spinner, Alert, Modal, Row, Col, Image
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import { Link } from 'react-router-dom';
-import { Eye, XCircle } from 'react-bootstrap-icons'; // Import icons
+import { Eye, XCircle } from 'react-bootstrap-icons'; 
 import { toast } from 'sonner';
 
 export default function MyOrdersPage() {
@@ -14,6 +14,10 @@ export default function MyOrdersPage() {
   // State cho Modal Chi Tiết
   const [showModal, setShowModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  // --- STATE MỚI CHO MODAL HỦY ---
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState(null);
 
   // 1. Tải danh sách đơn hàng
   const fetchMyOrders = async () => {
@@ -33,23 +37,30 @@ export default function MyOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // 2. Xử lý Hủy Đơn
-  const handleCancelOrder = async (orderId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
+  // 2. Xử lý khi bấm nút Hủy (Mở Modal)
+  const handleCancelClick = (orderId) => {
+    setOrderToCancel(orderId);
+    setShowCancelModal(true);
+  };
+
+  // 3. Xử lý Xác nhận Hủy (Gọi API)
+  const confirmCancelOrder = async () => {
+    if (!orderToCancel) return;
 
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        await api.put(`/orders/${orderId}/cancel`, {}, config);
+        await api.put(`/orders/${orderToCancel}/cancel`, {}, config);
         
         toast.success('Đã hủy đơn hàng thành công.');
-        fetchMyOrders(); // Tải lại danh sách để cập nhật trạng thái
-        setShowModal(false); // Đóng modal nếu đang mở
+        fetchMyOrders(); // Tải lại danh sách
+        setShowCancelModal(false); // Đóng modal
     } catch (err) {
         toast.error(err.response?.data?.message || 'Lỗi khi hủy đơn.');
+        setShowCancelModal(false);
     }
   };
 
-  // 3. Xử lý Xem Chi Tiết
+  // 4. Xử lý Xem Chi Tiết
   const handleViewDetails = (order) => {
       setSelectedOrder(order);
       setShowModal(true);
@@ -111,7 +122,7 @@ export default function MyOrdersPage() {
                         <Button 
                             variant="outline-danger" 
                             size="sm"
-                            onClick={() => handleCancelOrder(order._id)}
+                            onClick={() => handleCancelClick(order._id)} 
                             title="Hủy đơn hàng"
                         >
                             <XCircle />
@@ -183,12 +194,34 @@ export default function MyOrdersPage() {
         </Modal.Body>
         <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>Đóng</Button>
-            {/* Nút hủy cũng hiện trong Modal nếu đơn còn Pending */}
+            {/* Nút hủy trong Modal chi tiết */}
             {selectedOrder?.status === 'Pending' && (
-                <Button variant="danger" onClick={() => handleCancelOrder(selectedOrder._id)}>
+                <Button variant="danger" onClick={() => {
+                    setShowModal(false); // Đóng modal chi tiết trước
+                    handleCancelClick(selectedOrder._id); // Mở modal hủy
+                }}>
                     Hủy Đơn Hàng
                 </Button>
             )}
+        </Modal.Footer>
+      </Modal>
+
+      {/* --- MODAL XÁC NHẬN HỦY --- */}
+      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} centered>
+        <Modal.Header closeButton className="bg-warning border-0">
+            <Modal.Title>Xác nhận Hủy đơn</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+            <p>Bạn có chắc chắn muốn hủy đơn hàng này không?</p>
+            <p className="text-muted small">Hành động này không thể hoàn tác. Nếu bạn đã thanh toán online, vui lòng liên hệ CSKH để được hoàn tiền.</p>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+            <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
+                Không, giữ lại
+            </Button>
+            <Button variant="danger" onClick={confirmCancelOrder}>
+                Đồng ý Hủy
+            </Button>
         </Modal.Footer>
       </Modal>
 
