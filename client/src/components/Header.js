@@ -81,6 +81,13 @@ function Header() {
                       <NavDropdown.Item>Trang Quản Trị</NavDropdown.Item>
                     </LinkContainer>
                   )}
+                  <LinkContainer to="/profile">
+                    <NavDropdown.Item>Tài khoản</NavDropdown.Item>
+                  </LinkContainer>
+
+                  <LinkContainer to="/my-orders">
+                    <NavDropdown.Item>Đơn hàng của tôi</NavDropdown.Item>
+                  </LinkContainer>
                   <NavDropdown.Item onClick={handleLogout}>
                     Đăng xuất
                   </NavDropdown.Item>

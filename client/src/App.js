@@ -25,6 +25,9 @@ import ProductEditPage from './pages/admin/ProductEditPage';
 import UserListPage from './pages/admin/UserListPage';
 import CustomerListPage from './pages/admin/CustomerListPage';
 import { CheckoutPage } from './pages/CheckoutPage';
+import CouponManagementPage from './pages/admin/CouponManagementPage';
+import ProfilePage from './pages/customer/ProfilePage';
+import MyOrdersPage from './pages/customer/MyOrdersPage';
 
 import { CategoryPage } from './pages/customer/CategoryPage';
 import SearchResultsPage from './pages/customer/SearchResultsPage';
@@ -107,6 +110,8 @@ function App() {
           <Route element={<UserRoutes />}>
             <Route path="cart" element={<CartPage />} /> 
             <Route path="checkout" element={<CheckoutPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="my-orders" element={<MyOrdersPage />} />
           </Route>
         </Route>
 
@@ -128,6 +133,7 @@ function App() {
             <Route path="orders" element={<OrderListPage />} />
             <Route path="users" element={<UserListPage />} />
             <Route path="customers" element={<CustomerListPage />} />
+            <Route path="coupons" element={<CouponManagementPage />} />
           </Route>
         </Route>
         

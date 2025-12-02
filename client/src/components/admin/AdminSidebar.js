@@ -3,7 +3,7 @@ import { Nav } from 'react-bootstrap';
 // Dùng LinkContainer để Nav.Link không F5 lại trang
 import { LinkContainer } from 'react-router-bootstrap'; 
 // Icons
-import { HouseDoor, BoxSeam, ListCheck, Gear, People, PersonBadge } from 'react-bootstrap-icons';
+import { HouseDoor, BoxSeam, ListCheck, Gear, People, PersonBadge, Ticket } from 'react-bootstrap-icons';
 
 function AdminSidebar() {
   return (
@@ -48,6 +48,13 @@ function AdminSidebar() {
           <Nav.Link className="text-white d-flex align-items-center mb-2">
             <PersonBadge size={20} className="me-2" />
             Quản lý khách hàng
+          </Nav.Link>
+        </LinkContainer>
+
+        <LinkContainer to="/admin/coupons">
+          <Nav.Link className="text-white d-flex align-items-center mb-2">
+            <Ticket size={20} className="me-2" />
+            Quản lý mã giảm giá
           </Nav.Link>
         </LinkContainer>
         

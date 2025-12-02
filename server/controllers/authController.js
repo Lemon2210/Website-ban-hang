@@ -119,4 +119,32 @@ const checkEmail = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, checkEmail };
+const updateUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      user.name = req.body.name || user.name;
+      if (req.body.password) {
+        user.password = req.body.password; // Pre-save hook sẽ tự mã hóa
+      }
+
+      const updatedUser = await user.save();
+
+      // Trả về token mới (để cập nhật thông tin ở frontend ngay lập tức)
+      res.json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        token: generateToken(updatedUser._id),
+      });
+    } else {
+      res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
+module.exports = { registerUser, loginUser, checkEmail , updateUserProfile };

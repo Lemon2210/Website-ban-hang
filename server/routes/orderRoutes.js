@@ -1,18 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { createOrder } = require('../controllers/orderController');
+const { createOrder, getMyOrders, getOrderById, cancelOrder } = require('../controllers/orderController');
 const { protect } = require('../middleware/authMiddleware');
 
-// "Khi có yêu cầu POST tới '/', HÃY "BẢO VỆ" (protect)
-// và sau đó gọi hàm createOrder"
-//
-// URL: POST http://localhost:5000/api/orders
+// Tạo đơn hàng
 router.post('/', protect, createOrder);
 
-// (Sau này chúng ta có thể thêm các route khác ở đây)
-// Ví dụ:
-// router.get('/myorders', protect, getMyOrders);
-// router.get('/:id', protect, getOrderById);
+// Lấy danh sách đơn của tôi
+router.get('/myorders', protect, getMyOrders);
 
+// --- (THÊM ROUTE MỚI) ---
+// Lấy chi tiết 1 đơn (để xem trong Modal)
+router.get('/:id', protect, getOrderById);
+
+// Hủy đơn hàng
+router.put('/:id/cancel', protect, cancelOrder);
+// -----------------------
 
 module.exports = router;

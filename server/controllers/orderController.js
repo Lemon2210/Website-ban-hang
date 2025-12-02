@@ -1,61 +1,35 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Inventory = require('../models/Inventory');
+const Coupon = require('../models/Coupon');
 
-/*
- * @route   POST /api/orders
- * @desc    Tạo một đơn hàng mới và TRỪ TỒN KHO
- * @access  Private
- */
+// 1. Tạo đơn hàng (Giữ nguyên)
 const createOrder = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { shippingAddress, paymentMethod } = req.body;
+    const { shippingAddress, paymentMethod, couponCode } = req.body;
 
-    // 1. Lấy user và giỏ hàng
-    const user = await User.findById(userId).populate({
-      path: 'cart.inventory',
-      populate: { path: 'product' },
-    });
-
+    const user = await User.findById(userId).populate('cart.inventory');
     if (!user || user.cart.length === 0) {
-      return res.status(400).json({ message: 'Không có sản phẩm nào trong giỏ hàng' });
+      return res.status(400).json({ message: 'Giỏ hàng trống' });
     }
 
-    // --- BƯỚC MỚI: KIỂM TRA TỒN KHO TRƯỚC ---
-    // (Chúng ta phải đảm bảo TẤT CẢ sản phẩm đều còn hàng trước khi trừ bất cứ cái nào)
+    // Kiểm tra tồn kho
     for (const cartItem of user.cart) {
       const inventoryItem = await Inventory.findById(cartItem.inventory._id);
-
-      if (!inventoryItem) {
-        return res.status(404).json({ message: 'Sản phẩm không tồn tại trong kho.' });
-      }
-
-      // Giả sử chúng ta lấy hàng từ kho đầu tiên (store[0])
-      // Trong thực tế bạn có thể chọn kho gần nhất
-      const currentStock = inventoryItem.stock[0].quantity;
-
-      if (currentStock < cartItem.quantity) {
-        return res.status(400).json({ 
-          message: `Sản phẩm "${inventoryItem.product.name}" (${inventoryItem.attributes.color}-${inventoryItem.attributes.size}) không đủ hàng. Chỉ còn ${currentStock}.` 
-        });
+      if (!inventoryItem || inventoryItem.stock[0].quantity < cartItem.quantity) {
+        return res.status(400).json({ message: 'Sản phẩm không đủ hàng.' });
       }
     }
-    // ----------------------------------------
 
-
-    // 2. Chuẩn bị orderItems và TRỪ TỒN KHO
     let orderItems = [];
-    let totalPrice = 0;
+    let itemsPrice = 0;
 
     for (const cartItem of user.cart) {
       const inventoryItem = await Inventory.findById(cartItem.inventory._id).populate('product');
-      
-      // Tính tiền
       const itemPrice = inventoryItem.price * cartItem.quantity;
-      totalPrice += itemPrice;
+      itemsPrice += itemPrice;
 
-      // Tạo item cho đơn hàng
       orderItems.push({
         name: inventoryItem.product.name,
         quantity: cartItem.quantity,
@@ -64,36 +38,122 @@ const createOrder = async (req, res) => {
         inventory: inventoryItem._id,
       });
 
-      // --- BƯỚC MỚI: TRỪ TỒN KHO ---
+      // Trừ tồn kho
       inventoryItem.stock[0].quantity -= cartItem.quantity;
-      await inventoryItem.save(); // Lưu lại số lượng mới vào CSDL
-      // -----------------------------
+      await inventoryItem.save();
     }
 
-    // 3. Tạo đơn hàng mới
+    const shippingPrice = 30000;
+    let discountAmount = 0;
+
+    if (couponCode) {
+        const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+        if (coupon && coupon.isActive && new Date() <= new Date(coupon.expirationDate)) {
+            if (itemsPrice >= coupon.minOrderValue) {
+                if (coupon.type === 'percent') {
+                    discountAmount = (itemsPrice * coupon.value) / 100;
+                } else {
+                    discountAmount = coupon.value;
+                }
+                if (discountAmount > itemsPrice) discountAmount = itemsPrice;
+            }
+        }
+    }
+
+    const finalTotalPrice = itemsPrice + shippingPrice - discountAmount;
+
     const order = new Order({
       user: userId,
       orderItems,
       shippingAddress,
       paymentMethod,
-      totalPrice: totalPrice + 30000, // Cộng phí ship cứng 30k (hoặc lấy từ frontend)
+      couponCode: couponCode || null,
+      discountAmount: discountAmount,
+      totalPrice: finalTotalPrice,
     });
 
-    // 4. Lưu đơn hàng
     const createdOrder = await order.save();
 
-    // 5. Xóa sạch giỏ hàng của user
     user.cart = [];
     await user.save();
 
-    // 6. Trả về kết quả
     res.status(201).json(createdOrder);
-
   } catch (error) {
-    console.error('Lỗi khi tạo đơn hàng:', error.message);
-    res.status(500).json({ message: 'Lỗi máy chủ: ' + error.message });
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 };
 
+// 2. Lấy danh sách đơn hàng của tôi (Giữ nguyên)
+const getMyOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
 
-module.exports = { createOrder };
+// --- (HÀM MỚI) 3. Lấy chi tiết 1 đơn hàng ---
+const getOrderById = async (req, res) => {
+  try {
+    // Tìm đơn hàng và populate thông tin sản phẩm để hiển thị chi tiết
+    // Chỉ cho phép nếu đơn hàng đó thuộc về user đang đăng nhập (hoặc là admin)
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id })
+                             .populate({
+                                path: 'orderItems.inventory',
+                                populate: { path: 'product' } // Lấy tên gốc, danh mục...
+                             });
+
+    if (order) {
+      res.json(order);
+    } else {
+      res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
+// --- (HÀM MỚI) 4. Hủy đơn hàng ---
+const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Đơn hàng không tồn tại' });
+    }
+
+    // CHỈ CHO PHÉP HỦY NẾU ĐANG Ở TRẠNG THÁI 'Pending'
+    if (order.status !== 'Pending') {
+      return res.status(400).json({ message: 'Không thể hủy đơn hàng đã được xử lý hoặc đang giao.' });
+    }
+
+    // 1. Hoàn trả lại số lượng tồn kho
+    for (const item of order.orderItems) {
+      const inventory = await Inventory.findById(item.inventory);
+      if (inventory) {
+        // Giả sử kho chính là phần tử đầu tiên
+        inventory.stock[0].quantity += item.quantity;
+        await inventory.save();
+      }
+    }
+
+    // 2. Cập nhật trạng thái
+    order.status = 'Cancelled';
+    const updatedOrder = await order.save();
+
+    res.json({ message: 'Đã hủy đơn hàng thành công.', order: updatedOrder });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
+module.exports = {
+  createOrder,
+  getMyOrders,
+  getOrderById, // <-- Export
+  cancelOrder   // <-- Export
+};

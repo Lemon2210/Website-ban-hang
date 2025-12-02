@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Spinner, ListGroup, Image } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Spinner, ListGroup, Image, Alert } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
@@ -13,6 +13,9 @@ export function CheckoutPage() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false); // Trạng thái khi đang bấm nút Đặt hàng
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0); // Số tiền được giảm
+  const [couponApplied, setCouponApplied] = useState(null); // Mã đã áp dụng
 
   // Form thông tin giao hàng
   const [formData, setFormData] = useState({
@@ -58,7 +61,28 @@ export function CheckoutPage() {
   // --- TÍNH TOÁN TIỀN ---
   const subtotal = cartItems.reduce((acc, item) => acc + item.inventory.price * item.quantity, 0);
   const shippingFee = 30000; // Phí ship cố định (ví dụ 30k)
-  const total = subtotal + shippingFee;
+  const total = subtotal + shippingFee - discount;
+
+  // hàm áp dụng mã giảm giá
+  const handleApplyCoupon = async () => {
+  if (!couponCode) return;
+  try {
+    const config = { headers: { Authorization: `Bearer ${user.token}` } };
+    // Gọi API validate
+    const { data } = await api.post('/coupons/validate', {
+      code: couponCode,
+      orderTotal: subtotal // Gửi tổng tiền hàng lên để check
+    }, config);
+
+    setDiscount(data.discountAmount);
+    setCouponApplied(data.couponCode);
+    toast.success(data.message);
+  } catch (err) {
+    setDiscount(0);
+    setCouponApplied(null);
+    toast.error(err.response?.data?.message || 'Mã không hợp lệ');
+  }
+};
 
   // --- XỬ LÝ NHẬP LIỆU ---
   const handleChange = (e) => {
@@ -84,6 +108,7 @@ export function CheckoutPage() {
             city: formData.city
         },
         paymentMethod: paymentMethod,
+        couponCode: couponApplied,
         // itemsPrice, shippingPrice, totalPrice sẽ được tính lại ở backend hoặc lưu ở đây
         totalPrice: total 
       }, config);
@@ -261,6 +286,31 @@ export function CheckoutPage() {
                     ))}
                 </div>
 
+                {/* COUPON INPUT */}
+                <div className="input-group mb-3">
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Mã giảm giá"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    disabled={!!couponApplied} // Khóa nếu đã áp dụng
+                  />
+                  <Button 
+                    variant="outline-secondary" 
+                    onClick={handleApplyCoupon}
+                    disabled={!!couponApplied}
+                  >
+                    Áp dụng
+                  </Button>
+                </div>
+                {couponApplied && (
+                    <Alert variant="success" className="py-2 text-sm">
+                        Đã dùng mã: <strong>{couponApplied}</strong> 
+                        <span className="float-end fw-bold">-{discount.toLocaleString()}₫</span>
+                    </Alert>
+                )}
+
                 <hr />
 
                 {/* Tính tiền */}
@@ -279,6 +329,13 @@ export function CheckoutPage() {
                     <span className="h5 mb-0">Tổng cộng:</span>
                     <span className="h4 text-primary mb-0">{total.toLocaleString('vi-VN')}₫</span>
                 </div>
+
+                {discount > 0 && (
+                    <div className="d-flex justify-content-between mb-2 text-success">
+                        <span>Giảm giá:</span>
+                        <span>-{discount.toLocaleString('vi-VN')}₫</span>
+                    </div>
+                )}
 
                 <Button 
                     variant="dark" 
