@@ -86,6 +86,9 @@ const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (user && (await user.comparePassword(password))) {
+      if (user.isLocked) {
+        return res.status(403).json({ message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin.' });
+      }
       res.status(200).json({
         _id: user._id,
         name: user.name,

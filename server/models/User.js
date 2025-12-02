@@ -1,7 +1,7 @@
-// server/models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt'); // Import thư viện mã hóa
 
+// Schema cho từng món hàng trong giỏ
 const cartItemSchema = new mongoose.Schema({
   inventory: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,6 +17,7 @@ const cartItemSchema = new mongoose.Schema({
   // priceAtTime: { type: Number, required: true } 
 });
 
+// Schema chính cho User
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -41,6 +42,15 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'admin'], // Vai trò chỉ có thể là 'user' hoặc 'admin'
       default: 'user', // Mặc định là 'user'
     },
+    
+    // --- THÊM TRƯỜNG MỚI NÀY ---
+    // Dùng để Admin khóa tài khoản vi phạm
+    isLocked: { 
+      type: Boolean, 
+      default: false 
+    }, 
+    // ---------------------------
+
     cart: [cartItemSchema], // Giỏ hàng là một mảng các sản phẩm
   },
   {
@@ -49,8 +59,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // --- MÃ HÓA MẬT KHẨU TRƯỚC KHI LƯU ---
-// Đây là một "pre-save hook" của Mongoose
-// Nó sẽ tự động chạy trước khi một user mới được lưu vào database
 userSchema.pre('save', async function (next) {
   // Chỉ mã hóa mật khẩu nếu nó được thay đổi (hoặc là user mới)
   if (!this.isModified('password')) {
@@ -58,9 +66,7 @@ userSchema.pre('save', async function (next) {
   }
 
   try {
-    // "Salt" là một chuỗi ngẫu nhiên thêm vào để tăng bảo mật
     const salt = await bcrypt.genSalt(10);
-    // Thay thế mật khẩu gốc bằng mật khẩu đã được mã hóa
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
@@ -69,7 +75,6 @@ userSchema.pre('save', async function (next) {
 });
 
 // --- PHƯƠNG THỨC SO SÁNH MẬT KHẨU ---
-// Thêm một phương thức (method) vào model User để kiểm tra mật khẩu khi đăng nhập
 userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

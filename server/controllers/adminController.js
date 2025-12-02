@@ -314,6 +314,34 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+const toggleUserLock = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User không tồn tại' });
+    
+    if (user.role === 'admin') {
+        return res.status(400).json({ message: 'Không thể khóa tài khoản Admin' });
+    }
+
+    user.isLocked = !user.isLocked; // Đảo ngược trạng thái
+    await user.save();
+    
+    res.status(200).json({ message: user.isLocked ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản', isLocked: user.isLocked });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+};
+
+const getUserHistory = async (req, res) => {
+  try {
+    // Tìm tất cả đơn hàng mà field 'user' trùng với id gửi lên
+    const orders = await Order.find({ user: req.params.id }).sort({ createdAt: -1 });
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+};
+
 
 // --- (CẬP NHẬT DÒNG EXPORT) ---
 module.exports = {
@@ -326,4 +354,6 @@ module.exports = {
   getAllUsers,
   updateUserRole,
   updateOrderStatus,
+  toggleUserLock,
+  getUserHistory,
 };

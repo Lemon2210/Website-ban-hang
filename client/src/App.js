@@ -23,6 +23,7 @@ import OrderListPage from './pages/admin/OrderListPage';
 import ProductCreatePage from './pages/admin/ProductCreatePage'; 
 import ProductEditPage from './pages/admin/ProductEditPage';
 import UserListPage from './pages/admin/UserListPage';
+import CustomerListPage from './pages/admin/CustomerListPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 
 import { CategoryPage } from './pages/customer/CategoryPage';
@@ -126,6 +127,7 @@ function App() {
             <Route path="products/edit/:id" element={<ProductEditPage />} /> 
             <Route path="orders" element={<OrderListPage />} />
             <Route path="users" element={<UserListPage />} />
+            <Route path="customers" element={<CustomerListPage />} />
           </Route>
         </Route>
         

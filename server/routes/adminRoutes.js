@@ -11,7 +11,9 @@ const {
   updateProduct,
   getAllUsers,
   updateUserRole,
-  updateOrderStatus
+  updateOrderStatus,
+  toggleUserLock,
+  getUserHistory,
 } = require('../controllers/adminController');
 
 // Import các "vệ sĩ"
@@ -33,9 +35,13 @@ router.get('/products', protect, admin, getAllProductsAdmin);
 router.post('/products/check-sku', protect, admin, checkSku);
 
 router.delete('/products/:id', protect, admin, deleteInventory);
-// QUẢN LÝ TÀI KHOẢN
+// --- QUẢN LÝ TÀI KHOẢN ---
 router.get('/users', protect, admin, getAllUsers);
 router.put('/users/:id/role', protect, admin, updateUserRole);
+
+// --- QUẢN LÝ KHÁCH HÀNG (MỚI) ---
+router.put('/users/:id/lock', protect, admin, toggleUserLock);
+router.get('/users/:id/history', protect, admin, getUserHistory);
 /*
  * @route   POST /api/admin/products
  * @desc    Tạo sản phẩm mới
