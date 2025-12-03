@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const Inventory = require('../models/Inventory');
 const Coupon = require('../models/Coupon');
+const Review = require('../models/Review');
 
 // 1. Tạo đơn hàng (Giữ nguyên)
 const createOrder = async (req, res) => {
@@ -97,20 +98,30 @@ const getMyOrders = async (req, res) => {
 // --- (HÀM MỚI) 3. Lấy chi tiết 1 đơn hàng ---
 const getOrderById = async (req, res) => {
   try {
-    // Tìm đơn hàng và populate thông tin sản phẩm để hiển thị chi tiết
-    // Chỉ cho phép nếu đơn hàng đó thuộc về user đang đăng nhập (hoặc là admin)
+    // 1. Tìm đơn hàng
     const order = await Order.findOne({ _id: req.params.id, user: req.user._id })
                              .populate({
                                 path: 'orderItems.inventory',
-                                populate: { path: 'product' } // Lấy tên gốc, danh mục...
+                                populate: { path: 'product' }
                              });
 
     if (order) {
-      res.json(order);
+      // 2. Tìm tất cả đánh giá của user này cho đơn hàng này
+      const reviews = await Review.find({ order: order._id, user: req.user._id });
+
+      // 3. Trả về object kết hợp: Đơn hàng + Danh sách đánh giá
+      // (Dùng .toObject() để biến document Mongoose thành object JS thường để có thể gán thêm field)
+      const orderWithReviews = {
+          ...order.toObject(),
+          reviews: reviews
+      };
+
+      res.json(orderWithReviews);
     } else {
       res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
     }
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 };

@@ -3,6 +3,7 @@ const Inventory = require('../models/Inventory');
 const Product = require('../models/Product');
 const Store = require('../models/Store');
 const User = require('../models/User');
+const Review = require('../models/Review');
 
 /*
  * (Hàm getAllOrders giữ nguyên)
@@ -17,9 +18,6 @@ const getAllOrders = async (req, res) => {
   }
 };
 
-/*
- * (Hàm getAllProductsAdmin giữ nguyên)
- */
 const getAllProductsAdmin = async (req, res) => {
    try {
     const products = await Inventory.find({})
@@ -32,87 +30,81 @@ const getAllProductsAdmin = async (req, res) => {
   }
 };
 
-// --- (THÊM HÀM MỚI NÀY VÀO) ---
-/*
- * @route   POST /api/admin/products
- * @desc    Tạo sản phẩm Gốc VÀ Biến thể đầu tiên
- * @access  Private/Admin
- */
-// ... (Các import và hàm khác giữ nguyên) ...
-
-/*
- * @route   POST /api/admin/products
- * @desc    Tạo sản phẩm Gốc VÀ NHIỀU Biến thể
- * @access  Private/Admin
- */
 const createProduct = async (req, res) => {
+  console.log("------------------------------------------------");
+  console.log("🚀 DEBUG: Bắt đầu tạo sản phẩm");
+  
   try {
+    // 1. Kiểm tra dữ liệu nhận được
+    console.log("📦 Body nhận được:", req.body);
+    console.log("📂 Files nhận được:", req.files ? req.files.length + " files" : "Không có file");
+
     const { name, description, gender, mainCategory, subCategory, variants } = req.body;
     
-    // req.files chứa tất cả các file ảnh đã upload (do upload.any() xử lý)
-    // Mỗi file sẽ có thuộc tính 'fieldname', ví dụ: 'image_Black', 'image_White'
     if (!req.files || req.files.length === 0) {
+      console.log("❌ Lỗi: Không có file ảnh");
       return res.status(400).json({ message: 'Vui lòng upload ít nhất một ảnh.' });
     }
 
+    // 2. Parse Biến thể
     let parsedVariants = [];
     try {
       parsedVariants = JSON.parse(variants);
+      console.log("✅ Đã parse variants thành công:", parsedVariants.length, "biến thể");
     } catch (e) {
+      console.log("❌ Lỗi parse JSON variants:", e.message);
       return res.status(400).json({ message: 'Dữ liệu biến thể không hợp lệ.' });
     }
 
-    // 1. Tạo Sản phẩm Gốc
+    // 3. Tạo Sản phẩm Gốc
+    console.log("... Đang tạo Product gốc...");
     const newProduct = new Product({
-      name,
-      description,
-      gender, // <-- LƯU GENDER
-      category: {
-        main: mainCategory,
-        sub: subCategory,
-      },
+      name, description, gender,
+      category: { main: mainCategory, sub: subCategory },
     });
     const savedProduct = await newProduct.save();
+    console.log("✅ Đã tạo Product:", savedProduct._id);
 
+    // 4. Tìm cửa hàng
     const firstStore = await Store.findOne();
     if (!firstStore) {
-       return res.status(400).json({ message: 'Chưa có cửa hàng nào.' });
+       console.log("❌ Lỗi: Không tìm thấy Store nào trong DB");
+       return res.status(400).json({ message: 'Chưa có cửa hàng nào. Vui lòng chạy seeder.' });
     }
 
-    // 2. Tạo Biến thể và Gán ảnh theo màu
+    // 5. Tạo Inventory
+    console.log("... Đang tạo Inventory...");
     const inventoryPromises = parsedVariants.map((variant) => {
-      
-      // LOGIC MỚI: Tìm ảnh tương ứng với màu của biến thể này
-      // Frontend sẽ gửi file với fieldname là: "image_TênMàu" (ví dụ: image_Black)
+      // Tìm ảnh
       const colorImageFile = req.files.find(
         (file) => file.fieldname === `image_${variant.color}`
       );
-
-      // Nếu tìm thấy ảnh riêng cho màu này thì dùng, không thì dùng ảnh đầu tiên làm fallback
+      
+      // Nếu không tìm thấy ảnh cho màu này, dùng ảnh đầu tiên làm fallback
       const finalImageUrl = colorImageFile ? colorImageFile.path : req.files[0].path;
+      console.log(`   - Biến thể ${variant.color}-${variant.size}: Dùng ảnh ${finalImageUrl ? 'OK' : 'MISSING'}`);
 
       return new Inventory({
         product: savedProduct._id,
         sku: variant.sku,
         price: Number(variant.price),
-        imageUrl: finalImageUrl, // <-- URL ảnh đã map theo màu
-        attributes: {
-          color: variant.color,
-          size: variant.size,
-        },
-        stock: [
-          { store: firstStore._id, quantity: Number(variant.quantity) }
-        ]
+        imageUrl: finalImageUrl,
+        attributes: { color: variant.color, size: variant.size },
+        stock: [{ store: firstStore._id, quantity: Number(variant.quantity) }]
       }).save();
     });
 
     await Promise.all(inventoryPromises);
+    console.log("✅ Đã tạo xong tất cả Inventory!");
 
     res.status(201).json({ message: 'Tạo sản phẩm thành công!', product: savedProduct });
 
   } catch (error) {
-    console.error('Lỗi khi tạo sản phẩm:', error.message);
-    res.status(500).json({ message: 'Lỗi máy chủ: ' + error.message });
+    // IN RA LỖI CHI TIẾT
+    console.error("❌ LỖI SERVER CHI TIẾT:", error);
+    res.status(500).json({ 
+        message: 'Lỗi máy chủ: ' + (error.message || JSON.stringify(error)) 
+    });
   }
 };
 
@@ -201,9 +193,7 @@ const updateProduct = async (req, res) => {
 
     // 4. Tạo lại các biến thể
     const inventoryPromises = parsedVariants.map((variant) => {
-      // XỬ LÝ ẢNH:
-      // - Nếu có file mới upload (req.files có fieldname tương ứng) -> Dùng file mới
-      // - Nếu không -> Dùng lại URL cũ (variant.imageUrl) gửi từ frontend lên
+      
       
       let finalImageUrl = variant.imageUrl; // Mặc định dùng URL cũ
       
@@ -342,6 +332,132 @@ const getUserHistory = async (req, res) => {
   }
 };
 
+const getAllReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({})
+      .populate('user', 'name email') // Lấy tên và email người đánh giá
+      .populate('product', 'name')    // Lấy tên sản phẩm
+      .sort({ createdAt: -1 });
+    res.status(200).json(reviews);
+  } catch (error) {
+    console.error('Lỗi lấy reviews:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
+const deleteReview = async (req, res) => {
+  try {
+    await Review.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Đã xóa đánh giá' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi máy chủ' });
+  }
+};
+
+const getDashboardStats = async (req, res) => {
+  try {
+    const { type, date } = req.query; 
+    
+    let startDate, endDate;
+    const selectedDate = new Date(date || Date.now());
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth(); 
+
+    if (type === 'year') {
+        startDate = new Date(year, 0, 1);
+        endDate = new Date(year, 11, 31, 23, 59, 59);
+    } else {
+        startDate = new Date(year, month, 1);
+        endDate = new Date(year, month + 1, 0, 23, 59, 59);
+    }
+
+    // 1. Lấy đơn hàng & POPULATE Inventory để lấy SKU
+    const orders = await Order.find({
+        createdAt: { $gte: startDate, $lte: endDate },
+        status: { $ne: 'Cancelled' }
+    }).populate({
+        path: 'orderItems.inventory',
+        select: 'sku' // Chỉ cần lấy trường sku
+    });
+
+    const totalRevenue = orders.reduce((acc, order) => acc + order.totalPrice, 0);
+    const totalOrders = orders.length;
+
+    // 2. Tính toán Biểu đồ (Giữ nguyên logic cũ)
+    let revenueChartData = [];
+    if (type === 'year') {
+        const monthlyData = Array(12).fill(0);
+        orders.forEach(order => monthlyData[new Date(order.createdAt).getMonth()] += order.totalPrice);
+        revenueChartData = monthlyData.map((rev, i) => ({ name: `Tháng ${i + 1}`, revenue: rev }));
+    } else {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const dailyData = Array(daysInMonth).fill(0);
+        orders.forEach(order => dailyData[new Date(order.createdAt).getDate() - 1] += order.totalPrice);
+        revenueChartData = dailyData.map((rev, i) => ({ name: `${i + 1}`, revenue: rev }));
+    }
+
+    // 3. Thống kê Top Sản phẩm (Giữ nguyên logic cũ)
+    const productSales = {};
+    orders.forEach(order => {
+        order.orderItems.forEach(item => {
+            if (productSales[item.name]) productSales[item.name] += item.quantity;
+            else productSales[item.name] = item.quantity;
+        });
+    });
+    const sortedProducts = Object.keys(productSales).map(name => ({ name, sold: productSales[name] })).sort((a, b) => b.sold - a.sold);
+    const bestSellers = sortedProducts.slice(0, 5);
+    
+    // (Phần Top Rated giữ nguyên)
+    const reviews = await Review.find({}).populate('product', 'name');
+    const productRatings = {};
+    reviews.forEach(review => {
+        const prodName = review.product?.name || 'Unknown';
+        if (!productRatings[prodName]) productRatings[prodName] = { total: 0, count: 0 };
+        productRatings[prodName].total += review.rating;
+        productRatings[prodName].count += 1;
+    });
+    const ratedProducts = Object.keys(productRatings).map(name => ({
+        name, rating: (productRatings[name].total / productRatings[name].count).toFixed(1), count: productRatings[name].count
+    })).sort((a, b) => b.rating - a.rating);
+
+    // 4. CHUẨN BỊ DỮ LIỆU XUẤT EXCEL (MỚI)
+    // Tạo danh sách phẳng: Mỗi dòng là 1 sản phẩm trong đơn hàng
+    const exportData = [];
+    let index = 1;
+
+    orders.forEach(order => {
+        const orderDate = new Date(order.createdAt).toLocaleDateString('vi-VN');
+        order.orderItems.forEach(item => {
+            exportData.push({
+                tt: index++,
+                date: orderDate,
+                // Nếu inventory bị xóa thì để N/A, nếu còn thì lấy SKU
+                sku: item.inventory ? item.inventory.sku : 'N/A', 
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.price * item.quantity // Thành tiền = Giá * Số lượng
+            });
+        });
+    });
+
+    res.status(200).json({
+        period: type === 'year' ? `Năm ${year}` : `Tháng ${month + 1}/${year}`,
+        totalRevenue,
+        totalOrders,
+        revenueChartData,
+        bestSellers,
+        topRated: ratedProducts.slice(0, 5),
+        lowRated: ratedProducts.slice(-5).reverse(),
+        exportData // <-- Trả về dữ liệu này cho Frontend
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+};
+
 
 // --- (CẬP NHẬT DÒNG EXPORT) ---
 module.exports = {
@@ -356,4 +472,7 @@ module.exports = {
   updateOrderStatus,
   toggleUserLock,
   getUserHistory,
+  getAllReviews,
+  deleteReview,
+  getDashboardStats
 };
