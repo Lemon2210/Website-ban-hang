@@ -70,10 +70,10 @@ function AdminSidebar() {
           </Nav.Link>
         </LinkContainer>
 
-        <LinkContainer to="/admin/settings">
+        <LinkContainer to="/">
           <Nav.Link className="text-white d-flex align-items-center mb-2">
-            <Gear size={20} className="me-2" />
-            Cài đặt
+            <HouseDoor size={20} className="me-2" />
+            Trang chủ
           </Nav.Link>
         </LinkContainer>
 
