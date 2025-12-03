@@ -1,25 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Table, Button, Badge, Spinner, Alert, Modal, Row, Col, Image } from 'react-bootstrap';
+import { Container, Table, Button, Badge, Spinner, Alert, Modal, Form, Image, InputGroup, FormControl, Row, Col, Card } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import { Link } from 'react-router-dom';
-import { Eye, XCircle } from 'react-bootstrap-icons'; 
+import { Eye, XCircle, StarFill, Star, CheckCircleFill, Search } from 'react-bootstrap-icons';
 import { toast } from 'sonner';
 
 export default function MyOrdersPage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // State cho Modal Chi Tiết
-  const [showModal, setShowModal] = useState(false);
+  // --- STATE CHO CÁC MODAL ---
+  const [showModal, setShowModal] = useState(false); // Modal Chi tiết
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
-  // --- STATE MỚI CHO MODAL HỦY ---
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false); // Modal Hủy
   const [orderToCancel, setOrderToCancel] = useState(null);
 
-  // 1. Tải danh sách đơn hàng
+  const [showReviewModal, setShowReviewModal] = useState(false); // Modal Đánh giá
+  const [reviewItem, setReviewItem] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // Modal Thành công
+
+  // --- 1. TẢI DANH SÁCH ĐƠN HÀNG ---
   const fetchMyOrders = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
@@ -27,7 +35,7 @@ export default function MyOrdersPage() {
       setOrders(data);
       setLoading(false);
     } catch (err) {
-      toast.error('Không thể tải lịch sử đơn hàng.');
+      console.error("Lỗi tải đơn hàng:", err);
       setLoading(false);
     }
   };
@@ -37,35 +45,92 @@ export default function MyOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // 2. Xử lý khi bấm nút Hủy (Mở Modal)
+  // --- 2. LOGIC TÌM KIẾM REALTIME ---
+  const filteredOrders = orders.filter(order => 
+    order._id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // --- 3. XỬ LÝ XEM CHI TIẾT (GỌI API LẤY REVIEW) ---
+  const handleViewDetails = async (orderId) => {
+      setShowModal(true);
+      setLoadingDetails(true);
+      try {
+          const config = { headers: { Authorization: `Bearer ${user.token}` } };
+          // Gọi API lấy chi tiết đơn hàng (bao gồm reviews)
+          const { data } = await api.get(`/orders/${orderId}`, config);
+          setSelectedOrder(data);
+      } catch (err) {
+          toast.error('Không thể tải chi tiết đơn hàng.');
+          setShowModal(false);
+      } finally {
+          setLoadingDetails(false);
+      }
+  };
+
+  // Helper: Tìm review của sản phẩm trong đơn hàng này
+  const getReviewForProduct = (productId) => {
+      if (!selectedOrder || !selectedOrder.reviews) return null;
+      // productId là ID của Product Gốc
+      return selectedOrder.reviews.find(r => r.product === productId);
+  };
+
+  // --- 4. XỬ LÝ HỦY ĐƠN ---
   const handleCancelClick = (orderId) => {
     setOrderToCancel(orderId);
     setShowCancelModal(true);
   };
 
-  // 3. Xử lý Xác nhận Hủy (Gọi API)
   const confirmCancelOrder = async () => {
     if (!orderToCancel) return;
-
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         await api.put(`/orders/${orderToCancel}/cancel`, {}, config);
-        
         toast.success('Đã hủy đơn hàng thành công.');
-        fetchMyOrders(); // Tải lại danh sách
-        setShowCancelModal(false); // Đóng modal
+        fetchMyOrders(); 
+        setShowCancelModal(false); 
     } catch (err) {
         toast.error(err.response?.data?.message || 'Lỗi khi hủy đơn.');
         setShowCancelModal(false);
     }
   };
 
-  // 4. Xử lý Xem Chi Tiết
-  const handleViewDetails = (order) => {
-      setSelectedOrder(order);
-      setShowModal(true);
+  // --- 5. XỬ LÝ ĐÁNH GIÁ ---
+  const openReviewModal = (item) => {
+      setReviewItem(item);
+      setRating(5);
+      setComment('');
+      setShowReviewModal(true);
   };
 
+  const submitReview = async (e) => {
+      e.preventDefault();
+      if (rating === 0) { alert("Vui lòng chọn số sao!"); return; }
+
+      try {
+          const config = { headers: { Authorization: `Bearer ${user.token}` } };
+          // Xử lý ID an toàn
+          const invId = (reviewItem.inventory && reviewItem.inventory._id) ? reviewItem.inventory._id : reviewItem.inventory;
+
+          await api.post('/reviews', {
+              rating,
+              comment, 
+              inventoryId: invId,
+              orderId: selectedOrder._id
+          }, config);
+
+          // Thành công -> Reload lại chi tiết đơn hàng để cập nhật giao diện ngay lập tức
+          await handleViewDetails(selectedOrder._id);
+
+          setShowReviewModal(false);
+          setShowSuccessModal(true);
+          
+      } catch (err) {
+          const msg = err.response?.data?.message || 'Lỗi khi gửi đánh giá.';
+          alert("Lỗi: " + msg);
+      }
+  };
+
+  // --- UI HELPERS ---
   const getStatusBadge = (status) => {
     switch (status) {
         case 'Pending': return <Badge bg="warning" text="dark">Chờ xử lý</Badge>;
@@ -82,9 +147,22 @@ export default function MyOrdersPage() {
   return (
     <Container className="py-5">
       <h2 className="mb-4">Đơn hàng của tôi</h2>
+
+      {/* Thanh tìm kiếm */}
+      <Card className="mb-4 shadow-sm border-0">
+        <InputGroup>
+            <InputGroup.Text className="bg-white border-end-0"><Search /></InputGroup.Text>
+            <FormControl 
+                placeholder="Tìm theo mã đơn hàng..." 
+                className="border-start-0 ps-0"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+            />
+        </InputGroup>
+      </Card>
       
-      {orders.length === 0 ? (
-        <Alert variant="info">Bạn chưa có đơn hàng nào. <Link to="/">Mua sắm ngay</Link></Alert>
+      {filteredOrders.length === 0 ? (
+        <Alert variant="info">Không tìm thấy đơn hàng nào. <Link to="/">Mua sắm ngay</Link></Alert>
       ) : (
         <Table striped hover responsive className="align-middle shadow-sm">
           <thead className="table-dark">
@@ -97,36 +175,25 @@ export default function MyOrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <tr key={order._id}>
-                <td className="fw-bold text-primary">
-                    #{order._id.substring(order._id.length - 6).toUpperCase()}
-                </td>
+                <td className="fw-bold text-primary">#{order._id.substring(order._id.length - 6).toUpperCase()}</td>
                 <td>{new Date(order.createdAt).toLocaleDateString('vi-VN')}</td>
                 <td className="fw-bold">{order.totalPrice.toLocaleString('vi-VN')}₫</td>
                 <td>{getStatusBadge(order.status)}</td>
                 <td className="text-center">
-                    {/* Nút Xem Chi Tiết */}
                     <Button 
                         variant="outline-info" 
                         size="sm" 
                         className="me-2"
-                        onClick={() => handleViewDetails(order)}
+                        onClick={() => handleViewDetails(order._id)}
                         title="Xem chi tiết"
                     >
                         <Eye />
                     </Button>
 
-                    {/* Nút Hủy Đơn (Chỉ hiện khi Pending) */}
                     {order.status === 'Pending' && (
-                        <Button 
-                            variant="outline-danger" 
-                            size="sm"
-                            onClick={() => handleCancelClick(order._id)} 
-                            title="Hủy đơn hàng"
-                        >
-                            <XCircle />
-                        </Button>
+                        <Button variant="outline-danger" size="sm" onClick={() => handleCancelClick(order._id)}><XCircle /></Button>
                     )}
                 </td>
               </tr>
@@ -136,95 +203,153 @@ export default function MyOrdersPage() {
       )}
 
       {/* --- MODAL CHI TIẾT ĐƠN HÀNG --- */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered scrollable>
         <Modal.Header closeButton>
-            <Modal.Title>Chi tiết đơn hàng #{selectedOrder?._id.substring(selectedOrder._id.length - 6).toUpperCase()}</Modal.Title>
+            <Modal.Title>Chi tiết đơn hàng</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-            {selectedOrder && (
+            {loadingDetails ? (
+                <div className="text-center py-5"><Spinner animation="border" /></div>
+            ) : selectedOrder ? (
                 <>
-                    {/* Thông tin chung */}
                     <div className="mb-4 p-3 bg-light rounded border">
                         <Row>
-                            <Col md={6}>
+                             <Col md={6}>
+                                <p className="mb-1"><strong>Mã đơn:</strong> #{selectedOrder._id.substring(selectedOrder._id.length - 6).toUpperCase()}</p>
+                                <p className="mb-1"><strong>Ngày đặt:</strong> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
+                                <p className="mb-0"><strong>Trạng thái:</strong> {getStatusBadge(selectedOrder.status)}</p>
+                             </Col>
+                             <Col md={6}>
                                 <p className="mb-1"><strong>Người nhận:</strong> {selectedOrder.shippingAddress.fullName}</p>
                                 <p className="mb-1"><strong>SĐT:</strong> {selectedOrder.shippingAddress.phone}</p>
-                                <p className="mb-1"><strong>Địa chỉ:</strong> {selectedOrder.shippingAddress.address}</p>
-                            </Col>
-                            <Col md={6}>
-                                <p className="mb-1"><strong>Ngày đặt:</strong> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
-                                <p className="mb-1"><strong>Thanh toán:</strong> {selectedOrder.paymentMethod}</p>
-                                <p className="mb-0"><strong>Trạng thái:</strong> {getStatusBadge(selectedOrder.status)}</p>
-                            </Col>
+                                <p className="mb-0"><strong>Địa chỉ:</strong> {selectedOrder.shippingAddress.address}</p>
+                             </Col>
                         </Row>
                     </div>
 
-                    {/* Danh sách sản phẩm */}
                     <h6 className="mb-3">Sản phẩm</h6>
-                    <div style={{maxHeight: '300px', overflowY: 'auto'}}>
-                        {selectedOrder.orderItems.map((item, index) => (
-                            <div key={index} className="d-flex align-items-center mb-3 border-bottom pb-3">
-                                <Image 
-                                    src={item.imageUrl} 
-                                    rounded 
-                                    style={{width: '60px', height: '60px', objectFit: 'cover', marginRight: '15px'}} 
-                                />
-                                <div className="flex-grow-1">
-                                    <div className="fw-bold">{item.name}</div>
-                                    <div className="text-muted small">x{item.quantity}</div>
+                    <div>
+                        {selectedOrder.orderItems.map((item, index) => {
+                            // Tìm review của sản phẩm này (nếu có)
+                            const userReview = getReviewForProduct(item.inventory.product._id);
+
+                            return (
+                                <div key={index} className="mb-3 border-bottom pb-3">
+                                    <div className="d-flex align-items-center mb-2">
+                                        <Image src={item.imageUrl} rounded style={{width: '60px', height: '60px', objectFit: 'cover', marginRight: '15px'}} />
+                                        <div className="flex-grow-1">
+                                            <div className="fw-bold">{item.name}</div>
+                                            <div className="text-muted small">x{item.quantity}</div>
+                                        </div>
+                                        <div className="text-end">
+                                            <div className="fw-bold mb-1">{(item.price * item.quantity).toLocaleString('vi-VN')}₫</div>
+                                        </div>
+                                    </div>
+
+                                    {/* LOGIC HIỂN THỊ ĐÁNH GIÁ */}
+                                    {selectedOrder.status === 'Delivered' && (
+                                        <div className="ms-5 ps-4">
+                                            {userReview ? (
+                                                // ĐÃ ĐÁNH GIÁ
+                                                <div className="bg-light p-2 rounded border border-warning bg-opacity-10">
+                                                    <div className="d-flex align-items-center mb-1 text-warning">
+                                                        <span className="me-2 fw-bold text-dark" style={{fontSize:'0.85rem'}}>Đánh giá của bạn:</span>
+                                                        {[...Array(5)].map((_, i) => (
+                                                            i < userReview.rating ? <StarFill key={i} size={12}/> : <Star key={i} size={12}/>
+                                                        ))}
+                                                    </div>
+                                                    {userReview.comment ? (
+                                                        <p className="mb-0 small text-muted fst-italic">"{userReview.comment}"</p>
+                                                    ) : (
+                                                        <p className="mb-0 small text-muted fst-italic">(Không có lời bình)</p>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                // CHƯA ĐÁNH GIÁ -> NÚT ĐÁNH GIÁ
+                                                <div className="text-end">
+                                                    <Button 
+                                                        variant="warning" 
+                                                        size="sm" 
+                                                        style={{fontSize: '0.8rem'}}
+                                                        onClick={() => openReviewModal(item)}
+                                                    >
+                                                        <StarFill className="me-1 mb-1" size={12}/>Đánh giá ngay
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="fw-bold">
-                                    {(item.price * item.quantity).toLocaleString('vi-VN')}₫
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                     
-                    {/* Tổng kết tiền */}
                     <div className="text-end mt-3">
-                        <p className="mb-1">Tạm tính: {(selectedOrder.totalPrice - 30000 + (selectedOrder.discountAmount || 0)).toLocaleString()}₫</p>
-                        <p className="mb-1">Phí ship: 30.000₫</p>
-                        {selectedOrder.discountAmount > 0 && (
-                            <p className="mb-1 text-success">Giảm giá: -{selectedOrder.discountAmount.toLocaleString()}₫</p>
-                        )}
+                         <p className="mb-1">Tạm tính: {(selectedOrder.totalPrice - 30000 + (selectedOrder.discountAmount || 0)).toLocaleString()}₫</p>
+                         {selectedOrder.discountAmount > 0 && <p className="mb-1 text-success">Giảm giá: -{selectedOrder.discountAmount.toLocaleString()}₫</p>}
+                         <p className="mb-1">Phí ship: 30.000₫</p>
                         <h4 className="text-primary mt-2">Tổng cộng: {selectedOrder.totalPrice.toLocaleString('vi-VN')}₫</h4>
                     </div>
                 </>
-            )}
+            ) : <p className="text-center py-4">Không có dữ liệu.</p>}
         </Modal.Body>
         <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>Đóng</Button>
-            {/* Nút hủy trong Modal chi tiết */}
             {selectedOrder?.status === 'Pending' && (
-                <Button variant="danger" onClick={() => {
-                    setShowModal(false); // Đóng modal chi tiết trước
-                    handleCancelClick(selectedOrder._id); // Mở modal hủy
-                }}>
+                <Button variant="danger" onClick={() => { setShowModal(false); handleCancelClick(selectedOrder._id); }}>
                     Hủy Đơn Hàng
                 </Button>
             )}
         </Modal.Footer>
       </Modal>
 
-      {/* --- MODAL XÁC NHẬN HỦY --- */}
-      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} centered>
-        <Modal.Header closeButton className="bg-warning border-0">
-            <Modal.Title>Xác nhận Hủy đơn</Modal.Title>
-        </Modal.Header>
+      {/* --- MODAL NHẬP ĐÁNH GIÁ --- */}
+      <Modal show={showReviewModal} onHide={() => setShowReviewModal(false)} centered backdrop="static" style={{zIndex: 1060}}>
+        <Modal.Header closeButton><Modal.Title>Đánh giá sản phẩm</Modal.Title></Modal.Header>
         <Modal.Body>
-            <p>Bạn có chắc chắn muốn hủy đơn hàng này không?</p>
-            <p className="text-muted small">Hành động này không thể hoàn tác. Nếu bạn đã thanh toán online, vui lòng liên hệ CSKH để được hoàn tiền.</p>
+            <div className="text-center mb-4">
+                <p className="fw-bold mb-2">{reviewItem?.name}</p>
+                <div className="fs-1 text-warning" style={{cursor: 'pointer'}}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <span key={star} onClick={() => setRating(star)} className="mx-1">
+                            {star <= rating ? <StarFill /> : <Star />}
+                        </span>
+                    ))}
+                </div>
+                <p className="text-muted small mt-2">{rating === 5 ? "Tuyệt vời!" : rating >= 4 ? "Hài lòng" : "Bình thường"}</p>
+            </div>
+            <Form onSubmit={submitReview}>
+                <Form.Group className="mb-3">
+                    <Form.Label>Nhận xét (Tùy chọn)</Form.Label>
+                    <Form.Control as="textarea" rows={3} placeholder="Chia sẻ trải nghiệm..." value={comment} onChange={(e) => setComment(e.target.value)} />
+                </Form.Group>
+                <div className="d-flex justify-content-end gap-2">
+                    <Button variant="secondary" onClick={() => setShowReviewModal(false)}>Hủy</Button>
+                    <Button variant="primary" type="submit">Gửi Đánh Giá</Button>
+                </div>
+            </Form>
         </Modal.Body>
-        <Modal.Footer className="border-0">
-            <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
-                Không, giữ lại
-            </Button>
-            <Button variant="danger" onClick={confirmCancelOrder}>
-                Đồng ý Hủy
-            </Button>
-        </Modal.Footer>
       </Modal>
 
+      {/* --- MODAL THÀNH CÔNG --- */}
+      <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered style={{zIndex: 1070}}>
+        <Modal.Body className="text-center py-5">
+            <div className="text-success mb-3"><CheckCircleFill size={60} /></div>
+            <h4 className="mb-3">Đánh giá thành công!</h4>
+            <p className="text-muted">Cảm ơn bạn đã dành thời gian.</p>
+            <Button variant="success" onClick={() => setShowSuccessModal(false)}>Đóng</Button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Modal Hủy */}
+      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} centered>
+        <Modal.Header closeButton className="bg-warning border-0"><Modal.Title>Xác nhận Hủy đơn</Modal.Title></Modal.Header>
+        <Modal.Body><p>Bạn có chắc chắn muốn hủy đơn hàng này không?</p></Modal.Body>
+        <Modal.Footer className="border-0">
+            <Button variant="secondary" onClick={() => setShowCancelModal(false)}>Không</Button>
+            <Button variant="danger" onClick={confirmCancelOrder}>Đồng ý Hủy</Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 }
