@@ -28,44 +28,34 @@ const orderSchema = mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      required: true,
+      required: true, // 'COD' hoặc 'VNPAY'
     },
-    couponCode: { 
-        type: String, 
-        default: null 
+    // --- CẬP NHẬT: QUẢN LÝ TRẠNG THÁI THANH TOÁN ĐỘC LẬP ---
+    paymentStatus: {
+        type: String,
+        required: true,
+        default: 'Unpaid',
+        enum: ['Unpaid', 'Paid', 'Refunded', 'Failed'] // Chưa thanh toán, Đã TT, Hoàn tiền, Lỗi
     },
-    discountAmount: { 
-        type: Number, 
-        default: 0 
-    },
+    // -------------------------------------------------------
+    couponCode: { type: String, default: null },
+    discountAmount: { type: Number, default: 0 },
     totalPrice: {
       type: Number,
       required: true,
       default: 0.0,
     },
-    isPaid: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
-    paidAt: {
-      type: Date,
-    },
-    // --- CẬP NHẬT Ở ĐÂY ---
+    // Trạng thái vận đơn (Độc lập với thanh toán)
     status: {
       type: String,
       required: true,
       default: 'Pending',
-      // Danh sách các trạng thái hợp lệ
       enum: ['Pending', 'Processing', 'Shipping', 'Delivered', 'Cancelled'], 
     },
-    // ----------------------
   },
   {
     timestamps: true,
   }
 );
 
-const Order = mongoose.model('Order', orderSchema);
-
-module.exports = Order;
+module.exports = mongoose.model('Order', orderSchema);

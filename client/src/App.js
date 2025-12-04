@@ -22,6 +22,7 @@ import ProfilePage from './pages/customer/ProfilePage';
 import MyOrdersPage from './pages/customer/MyOrdersPage';
 import { CategoryPage } from './pages/customer/CategoryPage';
 import SearchResultsPage from './pages/customer/SearchResultsPage';
+import PaymentResultPage from './pages/customer/PaymentResultPage';
 
 // Trang Admin
 import DashboardPage from './pages/admin/DashboardPage';
@@ -92,6 +93,7 @@ function App() {
           <Route path="women" element={<CategoryPage gender="Women" title="Thời Trang Nữ" />} />
           <Route path="accessories" element={<CategoryPage category="Phụ kiện" title="Phụ Kiện" />} />
           <Route path="search" element={<SearchResultsPage />} />
+          <Route path="payment-result" element={<PaymentResultPage />} />
 
           <Route 
             path="login" 

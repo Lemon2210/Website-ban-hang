@@ -1,33 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Spinner, ListGroup, Image, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Spinner, Image, InputGroup, Alert } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
-import { toast } from 'sonner'; // Dùng để hiện thông báo đặt hàng thành công
+import { toast } from 'sonner';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // --- STATE ---
+  // --- STATE CƠ BẢN ---
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [ordering, setOrdering] = useState(false); // Trạng thái khi đang bấm nút Đặt hàng
-  const [couponCode, setCouponCode] = useState('');
-  const [discount, setDiscount] = useState(0); // Số tiền được giảm
-  const [couponApplied, setCouponApplied] = useState(null); // Mã đã áp dụng
+  const [ordering, setOrdering] = useState(false);
 
-  // Form thông tin giao hàng
+  // --- STATE FORM ĐỊA CHỈ ---
   const [formData, setFormData] = useState({
-    fullName: user?.name || '', // Tự điền tên nếu có
-    email: user?.email || '',   // Tự điền email nếu có
+    fullName: user?.name || '',
+    email: user?.email || '',
     phone: '',
     address: '',
     city: '',
     note: ''
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('COD'); // Mặc định là COD
+  const [paymentMethod, setPaymentMethod] = useState('COD');
+
+  // --- STATE MÃ GIẢM GIÁ ---
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0); // Số tiền được giảm
+  const [couponApplied, setCouponApplied] = useState(null); // Mã đã áp dụng thành công
 
   // --- 1. TẢI GIỎ HÀNG ---
   useEffect(() => {
@@ -43,7 +45,7 @@ export function CheckoutPage() {
         
         if (data.length === 0) {
             toast.info('Giỏ hàng của bạn đang trống.');
-            navigate('/cart'); // Quay lại giỏ hàng nếu trống
+            navigate('/cart');
             return;
         }
         
@@ -60,37 +62,37 @@ export function CheckoutPage() {
 
   // --- TÍNH TOÁN TIỀN ---
   const subtotal = cartItems.reduce((acc, item) => acc + item.inventory.price * item.quantity, 0);
-  const shippingFee = 30000; // Phí ship cố định (ví dụ 30k)
-  const total = subtotal + shippingFee - discount;
+  const shippingFee = 30000; // Phí ship cố định
+  const total = subtotal + shippingFee - discount; // Tổng cuối cùng
 
-  // hàm áp dụng mã giảm giá
-  const handleApplyCoupon = async () => {
-  if (!couponCode) return;
-  try {
-    const config = { headers: { Authorization: `Bearer ${user.token}` } };
-    // Gọi API validate
-    const { data } = await api.post('/coupons/validate', {
-      code: couponCode,
-      orderTotal: subtotal // Gửi tổng tiền hàng lên để check
-    }, config);
-
-    setDiscount(data.discountAmount);
-    setCouponApplied(data.couponCode);
-    toast.success(data.message);
-  } catch (err) {
-    setDiscount(0);
-    setCouponApplied(null);
-    toast.error(err.response?.data?.message || 'Mã không hợp lệ');
-  }
-};
-
-  // --- XỬ LÝ NHẬP LIỆU ---
+  // --- XỬ LÝ NHẬP LIỆU ĐỊA CHỈ ---
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- 2. XỬ LÝ ĐẶT HÀNG (GỌI API) ---
+  // --- 2. XỬ LÝ ÁP DỤNG MÃ GIẢM GIÁ ---
+  const handleApplyCoupon = async () => {
+    if (!couponCode) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      // Gọi API kiểm tra mã
+      const { data } = await api.post('/coupons/validate', {
+        code: couponCode,
+        orderTotal: subtotal // Gửi tổng tiền hàng để kiểm tra điều kiện tối thiểu
+      }, config);
+  
+      setDiscount(data.discountAmount);
+      setCouponApplied(data.couponCode);
+      toast.success(data.message);
+    } catch (err) {
+      setDiscount(0);
+      setCouponApplied(null);
+      toast.error(err.response?.data?.message || 'Mã không hợp lệ');
+    }
+  };
+
+  // --- 3. XỬ LÝ ĐẶT HÀNG (GỌI API) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setOrdering(true);
@@ -98,26 +100,35 @@ export function CheckoutPage() {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       
-      // Gửi dữ liệu lên API POST /api/orders
-      // (Backend sẽ tự lấy danh sách sản phẩm từ giỏ hàng trong CSDL)
-      await api.post('/orders', {
+      // A. Tạo đơn hàng trên hệ thống trước
+      const { data: order } = await api.post('/orders', {
         shippingAddress: {
             fullName: formData.fullName,
             phone: formData.phone,
-            address: `${formData.address}, ${formData.city}`, // Gộp địa chỉ
+            address: `${formData.address}, ${formData.city}`,
             city: formData.city
         },
         paymentMethod: paymentMethod,
-        couponCode: couponApplied,
-        // itemsPrice, shippingPrice, totalPrice sẽ được tính lại ở backend hoặc lưu ở đây
-        totalPrice: total 
+        couponCode: couponApplied, // Gửi mã giảm giá nếu có
+        // (Backend sẽ tự tính toán lại giá và trừ tồn kho)
       }, config);
 
-      // Thành công!
-      toast.success('Đặt hàng thành công! Cảm ơn bạn đã mua sắm.');
-      
-      // Chuyển hướng về trang chủ (hoặc trang Lịch sử đơn hàng nếu có)
-      navigate('/'); 
+      // B. Xử lý thanh toán
+      if (paymentMethod === 'VNPAY') {
+          // Nếu chọn VNPAY -> Gọi API lấy URL thanh toán
+          const { data: paymentData } = await api.post('/payment/create_payment_url', {
+              orderId: order._id,
+              amount: order.totalPrice, // Số tiền cần thanh toán
+              language: 'vn'
+          });
+          
+          // Chuyển hướng sang VNPAY Sandbox
+          window.location.href = paymentData.url;
+      } else {
+          // Nếu chọn COD -> Hoàn tất ngay
+          toast.success('Đặt hàng thành công! Cảm ơn bạn đã mua sắm.');
+          navigate('/my-orders'); // Chuyển đến trang Lịch sử đơn hàng
+      }
       
     } catch (err) {
       console.error(err);
@@ -177,7 +188,7 @@ export function CheckoutPage() {
                         name="email"
                         value={formData.email} 
                         onChange={handleChange} 
-                        disabled // Email lấy từ tài khoản, không cho sửa
+                        disabled // Không cho sửa email
                     />
                 </Form.Group>
 
@@ -218,7 +229,7 @@ export function CheckoutPage() {
                         name="note"
                         value={formData.note} 
                         onChange={handleChange} 
-                        placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi giao..."
+                        placeholder="Ví dụ: Giao giờ hành chính..."
                     />
                 </Form.Group>
               </Card.Body>
@@ -237,20 +248,25 @@ export function CheckoutPage() {
                         value="COD"
                         checked={paymentMethod === 'COD'}
                         onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mb-2"
+                        className="mb-3"
                     />
-                    <Form.Text className="text-muted d-block ms-4 mb-3">
-                        Bạn sẽ thanh toán tiền mặt cho shipper khi nhận được hàng.
-                    </Form.Text>
                     
+                    {/* --- THAY VNPAY BẰNG MOMO --- */}
                     <Form.Check 
                         type="radio"
-                        id="banking"
-                        label="Chuyển khoản ngân hàng (Đang bảo trì)"
+                        id="vnpay" // Giữ ID là vnpay cũng được để đỡ sửa logic, hoặc đổi thành momo
+                        label={
+                            <div className="d-flex align-items-center">
+                                <span>Ví MoMo</span>
+                                <img src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png" alt="MOMO" height="24" className="ms-2" />
+                            </div>
+                        }
                         name="paymentMethod"
-                        value="Banking"
-                        disabled
+                        value="VNPAY" // Vẫn giữ value là VNPAY để khớp với logic code cũ, hoặc bạn có thể đổi thành MOMO và sửa cả backend
+                        checked={paymentMethod === 'VNPAY'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
                     />
+                     {/* -------------------- */}
                 </Card.Body>
             </Card>
           </Col>
@@ -286,12 +302,12 @@ export function CheckoutPage() {
                     ))}
                 </div>
 
-                {/* COUPON INPUT */}
-                <div className="input-group mb-3">
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Mã giảm giá"
+                <hr />
+                
+                {/* --- KHU VỰC MÃ GIẢM GIÁ --- */}
+                <InputGroup className="mb-3">
+                  <Form.Control 
+                    placeholder="Nhập mã giảm giá"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
                     disabled={!!couponApplied} // Khóa nếu đã áp dụng
@@ -299,29 +315,36 @@ export function CheckoutPage() {
                   <Button 
                     variant="outline-secondary" 
                     onClick={handleApplyCoupon}
-                    disabled={!!couponApplied}
+                    disabled={!!couponApplied || !couponCode}
                   >
                     Áp dụng
                   </Button>
-                </div>
+                </InputGroup>
+                
                 {couponApplied && (
-                    <Alert variant="success" className="py-2 text-sm">
+                    <Alert variant="success" className="py-2 text-sm mb-3">
                         Đã dùng mã: <strong>{couponApplied}</strong> 
                         <span className="float-end fw-bold">-{discount.toLocaleString()}₫</span>
                     </Alert>
                 )}
-
-                <hr />
+                {/* --------------------------- */}
 
                 {/* Tính tiền */}
                 <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Tạm tính:</span>
                     <span className="fw-bold">{subtotal.toLocaleString('vi-VN')}₫</span>
                 </div>
-                <div className="d-flex justify-content-between mb-3">
+                <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Phí vận chuyển:</span>
                     <span className="fw-bold">{shippingFee.toLocaleString('vi-VN')}₫</span>
                 </div>
+                
+                {discount > 0 && (
+                    <div className="d-flex justify-content-between mb-2 text-success">
+                        <span>Giảm giá:</span>
+                        <span>-{discount.toLocaleString('vi-VN')}₫</span>
+                    </div>
+                )}
                 
                 <hr />
                 
@@ -329,13 +352,6 @@ export function CheckoutPage() {
                     <span className="h5 mb-0">Tổng cộng:</span>
                     <span className="h4 text-primary mb-0">{total.toLocaleString('vi-VN')}₫</span>
                 </div>
-
-                {discount > 0 && (
-                    <div className="d-flex justify-content-between mb-2 text-success">
-                        <span>Giảm giá:</span>
-                        <span>-{discount.toLocaleString('vi-VN')}₫</span>
-                    </div>
-                )}
 
                 <Button 
                     variant="dark" 
