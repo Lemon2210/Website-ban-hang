@@ -23,6 +23,7 @@ import MyOrdersPage from './pages/customer/MyOrdersPage';
 import { CategoryPage } from './pages/customer/CategoryPage'; // Trang danh mục cho khách xem
 import SearchResultsPage from './pages/customer/SearchResultsPage';
 import PaymentResultPage from './pages/customer/PaymentResultPage';
+import SizeGuidePage from './pages/SizeGuidePage';
 
 // Import Trang Admin (Admin Pages)
 import DashboardPage from './pages/admin/DashboardPage';
@@ -35,6 +36,7 @@ import CustomerListPage from './pages/admin/CustomerListPage';
 import CouponManagementPage from './pages/admin/CouponManagementPage';
 import ReviewListPage from './pages/admin/ReviewListPage';
 import AdminCategoryPage from './pages/admin/CategoryPage'; // <-- IMPORT MỚI: Trang quản lý danh mục (Admin)
+import BulkDiscountPage from './pages/admin/BulkDiscountPage';
 
 // --- "VỆ SĨ" BẢO VỆ ROUTE ---
 const UserRoutes = () => {
@@ -94,6 +96,7 @@ function App() {
           {/* Các trang danh mục cho khách */}
           <Route path="men" element={<CategoryPage gender="Men" title="Thời Trang Nam" />} />
           <Route path="women" element={<CategoryPage gender="Women" title="Thời Trang Nữ" />} />
+          <Route path="size-guide" element={<SizeGuidePage />} />
           <Route path="accessories" element={<CategoryPage category="Phụ kiện" title="Phụ Kiện" />} />
           
           <Route path="search" element={<SearchResultsPage />} />
@@ -141,6 +144,7 @@ function App() {
             
             {/* Quản lý Marketing & Đánh giá */}
             <Route path="coupons" element={<CouponManagementPage />} />
+            <Route path="promotions" element={<BulkDiscountPage />} />
             <Route path="reviews" element={<ReviewListPage />} />
           </Route>
         </Route>

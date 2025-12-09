@@ -12,7 +12,8 @@ import {
   Tags, 
   BoxArrowRight, 
   BarChartLine, 
-  Grid // <-- 1. IMPORT THÊM ICON GRID CHO DANH MỤC
+  Grid,
+  Percent
 } from 'react-bootstrap-icons'; 
 import { Button } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
@@ -70,6 +71,13 @@ function AdminSidebar() {
           <Nav.Link className="text-white d-flex align-items-center mb-2">
             <PersonBadge size={20} className="me-2" />
             Quản lý khách hàng
+          </Nav.Link>
+        </LinkContainer>
+
+        <LinkContainer to="/admin/promotions">
+          <Nav.Link className="text-white d-flex align-items-center mb-2">
+            <Percent size={20} className="me-2" />
+            Quản lý Khuyến mãi
           </Nav.Link>
         </LinkContainer>
 

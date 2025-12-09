@@ -5,8 +5,9 @@ import { useDropzone } from 'react-dropzone';
 import { CloudUpload } from 'react-bootstrap-icons';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'sonner';
 
-// --- CÁC HẰNG SỐ ---
+// --- HẰNG SỐ ---
 const AVAILABLE_COLORS = [
   { name: "Black", hex: "#000000" },
   { name: "White", hex: "#FFFFFF" },
@@ -19,7 +20,7 @@ const AVAILABLE_COLORS = [
 
 const AVAILABLE_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
-// --- COMPONENT UPLOAD ẢNH ---
+// --- UPLOAD ẢNH (GIỮ NGUYÊN) ---
 const ColorImageUpload = ({ colorName, currentPreview, onImageSelect }) => {
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles?.[0]) {
@@ -72,11 +73,15 @@ function ProductCreatePage() {
   const [basePrice, setBasePrice] = useState(''); 
   const [baseSku, setBaseSku] = useState('');
   
+  // --- THÊM STATE GIẢM GIÁ ---
+  const [discount, setDiscount] = useState(0); 
+  // ---------------------------
+
   // --- STATE DANH MỤC 3 CẤP ---
-  const [categories, setCategories] = useState([]); // Tất cả danh mục
-  const [mainCategory, setMainCategory] = useState(''); // Cấp 1: Chính (VD: Áo)
-  const [subCategory, setSubCategory] = useState('');   // Cấp 2: Phụ (VD: Áo Polo)
-  const [brandCategory, setBrandCategory] = useState(''); // Cấp 3: Brand (VD: Nike)
+  const [categories, setCategories] = useState([]); 
+  const [mainCategory, setMainCategory] = useState(''); 
+  const [subCategory, setSubCategory] = useState(''); 
+  const [brandCategory, setBrandCategory] = useState(''); 
 
   const [skuError, setSkuError] = useState(null); 
 
@@ -103,16 +108,10 @@ function ProductCreatePage() {
     fetchCategories();
   }, []);
 
-  // --- LOGIC LỌC DANH MỤC ĐA CẤP ---
-  // Cấp 1: Cha = null
+  // --- LỌC DANH MỤC ---
   const parentCategories = categories.filter(c => !c.parent);
-  
-  // Cấp 2: Cha = mainCategory
   const childCategories = categories.filter(c => c.parent && c.parent._id === mainCategory);
-
-  // Cấp 3: Cha = subCategory (Brand)
   const brandCategories = categories.filter(c => c.parent && c.parent._id === subCategory);
-
 
   // --- LOGIC CHECK SKU ---
   useEffect(() => {
@@ -156,7 +155,6 @@ function ProductCreatePage() {
       });
     }
     setGeneratedVariants(newVariants);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedColors, selectedSizes, basePrice, baseSku]); 
 
   // --- Các hàm xử lý sự kiện ---
@@ -229,11 +227,13 @@ function ProductCreatePage() {
     formData.append('description', description);
     formData.append('gender', gender);
     
-    // --- GỬI DANH MỤC ---
-    formData.append('category', mainCategory); // Cấp 1
-    if (subCategory) formData.append('subCategory', subCategory); // Cấp 2
-    if (brandCategory) formData.append('brand', brandCategory); // Cấp 3 (Brand)
+    // --- GỬI GIẢM GIÁ ---
+    formData.append('discount', discount);
     // --------------------
+
+    formData.append('category', mainCategory);
+    if (subCategory) formData.append('subCategory', subCategory); 
+    if (brandCategory) formData.append('brand', brandCategory); 
 
     formData.append('variants', JSON.stringify(generatedVariants));
 
@@ -286,9 +286,8 @@ function ProductCreatePage() {
                   </div>
                 </Form.Group>
 
-                {/* --- KHU VỰC CHỌN DANH MỤC 3 CẤP --- */}
                 <Row>
-                  {/* CẤP 1: DANH MỤC CHÍNH */}
+                  {/* CẤP 1 */}
                   <Col md={4}>
                     <Form.Group className="mb-3">
                         <Form.Label>Danh mục chính (*)</Form.Label>
@@ -296,8 +295,8 @@ function ProductCreatePage() {
                             value={mainCategory} 
                             onChange={e => {
                                 setMainCategory(e.target.value);
-                                setSubCategory(''); // Reset cấp 2
-                                setBrandCategory(''); // Reset cấp 3
+                                setSubCategory(''); 
+                                setBrandCategory(''); 
                             }}
                             required
                         >
@@ -309,7 +308,7 @@ function ProductCreatePage() {
                     </Form.Group>
                   </Col>
 
-                  {/* CẤP 2: DANH MỤC PHỤ */}
+                  {/* CẤP 2 */}
                   <Col md={4}>
                     <Form.Group className="mb-3">
                         <Form.Label>Danh mục phụ</Form.Label>
@@ -317,7 +316,7 @@ function ProductCreatePage() {
                             value={subCategory} 
                             onChange={e => {
                                 setSubCategory(e.target.value);
-                                setBrandCategory(''); // Reset cấp 3
+                                setBrandCategory(''); 
                             }}
                             disabled={!mainCategory}
                         >
@@ -333,7 +332,7 @@ function ProductCreatePage() {
                     </Form.Group>
                   </Col>
 
-                  {/* CẤP 3: BRAND (ẨN NẾU CHƯA CHỌN CẤP 2 HOẶC CẤP 2 KHÔNG CÓ CON) */}
+                  {/* CẤP 3 */}
                   {subCategory && brandCategories.length > 0 && (
                       <Col md={4}>
                         <Form.Group className="mb-3">
@@ -351,22 +350,34 @@ function ProductCreatePage() {
                       </Col>
                   )}
                 </Row>
-                {/* ------------------------------------- */}
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Mô tả chi tiết</Form.Label>
-                  <Form.Control as="textarea" rows={4} value={description} onChange={e => setDescription(e.target.value)} />
-                </Form.Group>
+                <Form.Group className="mb-3"><Form.Label>Mô tả chi tiết</Form.Label><Form.Control as="textarea" rows={4} value={description} onChange={e => setDescription(e.target.value)} /></Form.Group>
 
                 <Row>
-                    <Col md={6}>
+                    <Col md={4}>
                         <Form.Group className="mb-3">
                             <Form.Label>Giá bán chung (VND)</Form.Label>
                             <Form.Control type="number" required value={basePrice} onChange={e => setBasePrice(e.target.value)} />
                         </Form.Group>
                     </Col>
                     
-                    <Col md={6}>
+                    {/* --- Ô NHẬP GIẢM GIÁ (MỚI) --- */}
+                    <Col md={4}>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="text-danger fw-bold">Giảm giá (%)</Form.Label>
+                            <Form.Control 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                value={discount} 
+                                onChange={e => setDiscount(e.target.value)} 
+                                placeholder="Nhập % giảm"
+                            />
+                        </Form.Group>
+                    </Col>
+                    {/* ----------------------------- */}
+
+                    <Col md={4}>
                         <Form.Group className="mb-3">
                             <Form.Label>Mã SKU gốc (Prefix)</Form.Label>
                             <Form.Control 
@@ -386,7 +397,6 @@ function ProductCreatePage() {
               </Card.Body>
             </Card>
 
-            {/* ... PHẦN CHỌN MÀU/SIZE & BẢNG BIẾN THỂ (GIỮ NGUYÊN) ... */}
             <Card className="mb-4 shadow-sm">
               <Card.Header as="h5" className="bg-white py-3">2. Chọn Màu & Size</Card.Header>
               <Card.Body>

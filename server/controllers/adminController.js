@@ -16,22 +16,28 @@ const getAllOrders = async (req, res) => {
 };
 
 const getAllProductsAdmin = async (req, res) => {
-   try {
+  try {
+    // Lấy Inventory và populate sâu vào Product -> Category
     const products = await Inventory.find({})
       .populate({
           path: 'product',
-          // Populate lồng nhau để lấy tên danh mục từ ID
+          // Populate lồng nhau để lấy tên danh mục
           populate: [
-              { path: 'category', select: 'name' },     // Lấy tên cấp 1
-              { path: 'subCategory', select: 'name' },  // Lấy tên cấp 2
-              { path: 'brand', select: 'name' }         // Lấy tên cấp 3
+              { path: 'category', select: 'name' },     // Cấp 1
+              { path: 'subCategory', select: 'name' },  // Cấp 2
+              { path: 'brand', select: 'name' }         // Cấp 3
           ]
       }) 
-      .populate('stock.store'); 
-    res.status(200).json(products);
+      .populate('stock.store')
+      .sort({ createdAt: -1 }); // Sắp xếp mới nhất lên đầu
+
+    // Lọc bỏ các inventory mà product bị null (phòng trường hợp product bị xóa nhưng inventory còn sót)
+    const validProducts = products.filter(item => item.product !== null);
+
+    res.status(200).json(validProducts);
   } catch (error) {
     console.error('Lỗi khi Admin lấy sản phẩm:', error.message);
-    res.status(500).json({ message: 'Lỗi máy chủ' });
+    res.status(500).json({ message: 'Lỗi máy chủ: ' + error.message });
   }
 };
 
@@ -43,7 +49,7 @@ const createProduct = async (req, res) => {
   try {
     // 1. Kiểm tra dữ liệu nhận được
     // Nhận category (cấp 1), subCategory (cấp 2), brand (cấp 3)
-    const { name, description, gender, category, subCategory, brand, variants } = req.body;
+    const { name, description, gender, category, subCategory, brand, variants, discount } = req.body;
     
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'Vui lòng upload ít nhất một ảnh.' });
@@ -64,6 +70,7 @@ const createProduct = async (req, res) => {
       name, 
       description, 
       gender,
+      discount: Number(discount) || 0,
       // --- SỬA ĐỔI QUAN TRỌNG: GÁN ID TRỰC TIẾP ---
       category,       // Cấp 1 (Bắt buộc)
       subCategory: subCategory || null, // Cấp 2 (Tùy chọn)
@@ -177,7 +184,7 @@ const deleteInventory = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
-    const { name, description, gender, category, subCategory, brand, variants } = req.body;
+    const { name, description, gender, category, subCategory, brand, variants, discount } = req.body;
     
     // 1. Parse danh sách biến thể
     let parsedVariants = [];
@@ -197,6 +204,7 @@ const updateProduct = async (req, res) => {
     product.name = name;
     product.description = description;
     product.gender = gender;
+    product.discount = Number(discount) || 0;
     
     // Cập nhật danh mục 3 cấp
     if (category) product.category = category;
@@ -445,6 +453,76 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
+const updateBulkDiscounts = async (req, res) => {
+    try {
+        const { updates } = req.body; 
+        // updates là mảng: [{ id: 'abc', discount: 10 }, { id: 'xyz', discount: 20 }]
+
+        if (!updates || updates.length === 0) {
+            return res.status(400).json({ message: 'Không có dữ liệu cập nhật' });
+        }
+
+        // Tạo các lệnh update chạy song song (bulkWrite)
+        const bulkOps = updates.map(item => ({
+            updateOne: {
+                filter: { _id: item.id },
+                update: { $set: { discount: Number(item.discount) } }
+            }
+        }));
+
+        await Product.bulkWrite(bulkOps);
+
+        res.status(200).json({ message: `Đã cập nhật khuyến mãi cho ${updates.length} sản phẩm!` });
+    } catch (error) {
+        console.error("Bulk Update Error:", error);
+        res.status(500).json({ message: 'Lỗi server: ' + error.message });
+    }
+};
+
+const fixDataError = async (req, res) => {
+    try {
+        console.log("... Đang quét và sửa lỗi dữ liệu ...");
+        
+        // 1. Tìm tất cả sản phẩm
+        const products = await Product.find({});
+        let fixedCount = 0;
+
+        for (let p of products) {
+            let isModified = false;
+
+            // Kiểm tra nếu category/subCategory/brand bị lưu sai định dạng (ví dụ chuỗi rỗng)
+            // Lưu ý: Trong Mongoose, truy cập p.subCategory có thể gây lỗi nếu nó invalid
+            // Nên ta dùng p.toObject() hoặc check _doc
+            
+            // Fix subCategory
+            if (p.subCategory === "" || (typeof p.subCategory === 'string' && p.subCategory.length < 10)) {
+                p.subCategory = null;
+                isModified = true;
+            }
+            // Fix brand
+            if (p.brand === "" || (typeof p.brand === 'string' && p.brand.length < 10)) {
+                p.brand = null;
+                isModified = true;
+            }
+            // Fix category (nếu lỗi thì bắt buộc phải có, gán tạm ID danh mục đầu tiên tìm thấy hoặc null)
+            if (!p.category) {
+               // Logic tùy chọn: Xóa sản phẩm lỗi hoặc gán default
+            }
+
+            if (isModified) {
+                await p.save({ validateBeforeSave: false }); // Lưu cưỡng chế bỏ qua validate
+                fixedCount++;
+            }
+        }
+
+        res.json({ message: `Đã quét xong. Đã sửa ${fixedCount} sản phẩm lỗi.` });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Lỗi khi fix data: ' + error.message });
+    }
+};
+
 module.exports = {
   getAllOrders,
   getAllProductsAdmin,
@@ -459,5 +537,7 @@ module.exports = {
   getUserHistory,
   getAllReviews,
   deleteReview,
-  getDashboardStats
+  getDashboardStats,
+  updateBulkDiscounts,
+  fixDataError
 };

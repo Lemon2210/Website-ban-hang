@@ -4,10 +4,9 @@ import { Container, Row, Col, Image, Button, ButtonGroup, Form, Spinner, Alert, 
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import { toast } from "sonner";
-// --- SỬA LỖI: Đổi InfoCircle thành Info ---
+// --- ĐÃ SỬA LỖI IMPORT ICON ---
 import { CheckCircle, X, Star, StarHalf, CircleUser, ChevronLeft, ChevronRight, Info } from "lucide-react"; 
 
-// 1. IMPORT COMPONENT THẺ SẢN PHẨM
 import ProductCard from '../components/ProductCard';
 
 // --- COMPONENT BẢNG SIZE ---
@@ -16,7 +15,6 @@ const SizeGuideTable = () => {
         <Card className="mb-5 border-0 shadow-sm">
             <Card.Header className="bg-white py-3 border-bottom">
                 <h5 className="mb-0 fw-bold text-primary d-flex align-items-center">
-                    {/* --- SỬA LỖI: Dùng Info ở đây --- */}
                     <Info size={20} className="me-2"/> Hướng dẫn chọn Size
                 </h5>
             </Card.Header>
@@ -50,12 +48,9 @@ function ProductDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // --- STATE ---
   const [product, setProduct] = useState(null); 
   const [variants, setVariants] = useState([]); 
   const [reviews, setReviews] = useState([]); 
-  
-  // State cho sản phẩm tương tự
   const [relatedProducts, setRelatedProducts] = useState([]); 
 
   const [loading, setLoading] = useState(true);
@@ -69,17 +64,14 @@ function ProductDetailPage() {
   const [availableColors, setAvailableColors] = useState([]);
   const [availableSizes, setAvailableSizes] = useState([]);
 
-  // State cho Phân trang Bình luận
   const [reviewPage, setReviewPage] = useState(0);
   const reviewsPerPage = 5;
 
-  // --- 1. GỌI API KHI TRANG TẢI ---
+  // 1. GỌI API CHI TIẾT SẢN PHẨM
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
-        
-        // Reset lại các state khi ID thay đổi
         setRelatedProducts([]);
         setProduct(null);
         
@@ -94,7 +86,6 @@ function ProductDetailPage() {
         setVariants(variantsData); 
         setReviews(reviewsRes.data); 
 
-        // Logic chọn màu/ảnh mặc định
         const colors = [...new Set(variantsData.map(v => v.attributes.color))];
         setAvailableColors(colors);
         
@@ -110,35 +101,24 @@ function ProductDetailPage() {
       } catch (err) {
         setError('Không tìm thấy sản phẩm này.');
         setLoading(false);
-        console.error("Lỗi:", err);
       }
     };
 
     fetchProductDetails();
   }, [productId]); 
 
-  // --- 2. LOGIC LẤY SẢN PHẨM TƯƠNG TỰ (ĐÃ SỬA: THEO DANH MỤC CẤP 2) ---
+  // 2. GỌI API SẢN PHẨM TƯƠNG TỰ
   useEffect(() => {
     if (!product) return; 
 
     const fetchRelated = async () => {
         try {
-            // Lấy ID danh mục cấp 2 (subCategory)
             const subCatId = typeof product.subCategory === 'object' ? product.subCategory?._id : product.subCategory;
-            
-            // Nếu không có subCategory, dùng mainCategory làm fallback
             const categoryQuery = subCatId ? `subCategory=${subCatId}` : `category=${product.category?._id || product.category}`;
 
-            // Gọi API lấy sản phẩm
             const { data } = await api.get(`/products?${categoryQuery}`);
-            
-            // 1. Lọc bỏ sản phẩm đang xem
             const filtered = data.filter(p => p._id !== product._id);
-            
-            // 2. Xáo trộn ngẫu nhiên
             const shuffled = filtered.sort(() => 0.5 - Math.random());
-            
-            // 3. Lấy 4 sản phẩm đầu tiên
             setRelatedProducts(shuffled.slice(0, 4));
             
         } catch (err) {
@@ -148,10 +128,8 @@ function ProductDetailPage() {
 
     fetchRelated();
   }, [product]); 
-  // --------------------------------------------
 
-
-  // --- 3. LOGIC CẬP NHẬT SIZE KHI CHỌN MÀU ---
+  // 3. LOGIC CHỌN MÀU/SIZE
   useEffect(() => {
     if (!selectedColor || variants.length === 0) return;
     const sizesForColor = variants
@@ -165,7 +143,6 @@ function ProductDetailPage() {
     if (variantForImage) setMainImage(variantForImage.imageUrl);
   }, [selectedColor, variants]);
 
-  // --- 4. TÍNH SAO TRUNG BÌNH ---
   const averageRating = reviews.length > 0 
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) 
     : 0;
@@ -184,7 +161,6 @@ function ProductDetailPage() {
     return stars;
   };
 
-  // --- 5. XỬ LÝ SỰ KIỆN ---
   const handleColorClick = (color) => setSelectedColor(color);
   const handleSizeClick = (size) => setSelectedSize(size);
   
@@ -214,7 +190,14 @@ function ProductDetailPage() {
               <div className="flex-grow-1 overflow-hidden">
                 <div className="fw-bold text-truncate" style={{ fontSize: '0.9rem' }}>{product.name}</div>
                 <div className="text-muted small mb-1">{selectedColor} / {selectedSize}</div>
-                <div className="fw-bold text-dark">{selectedVariant.price.toLocaleString('vi-VN')}₫</div>
+                
+                {/* HIỂN THỊ GIÁ TRONG TOAST (CÓ XỬ LÝ DISCOUNT) */}
+                <div className="fw-bold text-dark">
+                    {(product.discount > 0 
+                        ? selectedVariant.price * (1 - product.discount / 100) 
+                        : selectedVariant.price
+                    ).toLocaleString('vi-VN')}₫
+                </div>
               </div>
             </div>
             <Button variant="outline-dark" size="sm" className="w-100 fw-bold rounded-pill" onClick={() => { toast.dismiss(t); navigate('/cart'); }}>XEM GIỎ HÀNG &rarr;</Button>
@@ -224,7 +207,6 @@ function ProductDetailPage() {
     } else { toast.error("Vui lòng chọn biến thể."); }
   };
 
-  // Logic Phân trang Bình luận
   const displayedReviews = reviews.slice(reviewPage * reviewsPerPage, (reviewPage + 1) * reviewsPerPage);
   const totalPages = Math.ceil(reviews.length / reviewsPerPage);
 
@@ -247,9 +229,30 @@ function ProductDetailPage() {
               <span className="text-muted small">({reviews.length} đánh giá)</span>
           </div>
 
-          <h2 className="my-3 text-danger fw-bold">
-            {variants.length > 0 ? `${variants[0].price.toLocaleString('vi-VN')}₫` : '...'}
-          </h2>
+          {/* --- CẬP NHẬT PHẦN HIỂN THỊ GIÁ CÓ KHUYẾN MÃI --- */}
+          <div className="my-3">
+            {product.discount > 0 ? (
+                <div className="d-flex align-items-center">
+                    <h2 className="text-dark fw-bold mb-0 me-3">
+                        {(variants.length > 0 
+                            ? variants[0].price * (1 - product.discount / 100) 
+                            : 0
+                        ).toLocaleString('vi-VN')}₫
+                    </h2>
+                    <span className="text-muted text-decoration-line-through fs-5 me-2">
+                        {variants.length > 0 ? variants[0].price.toLocaleString('vi-VN') : '0'}₫
+                    </span>
+                    <span className="badge bg-primary fs-6 py-2 px-3 rounded-pill">
+                        -{product.discount}%
+                    </span>
+                </div>
+            ) : (
+                <h2 className="text-danger fw-bold">
+                    {variants.length > 0 ? `${variants[0].price.toLocaleString('vi-VN')}₫` : '...'}
+                </h2>
+            )}
+          </div>
+          {/* ------------------------------------------------ */}
           
           <p className="text-muted">{product.description}</p>
 
@@ -286,19 +289,15 @@ function ProductDetailPage() {
         </Col>
       </Row>
 
-      {/* --- PHẦN MỚI: BẢNG HƯỚNG DẪN CHỌN SIZE --- */}
       <Row>
           <Col>
               <SizeGuideTable />
           </Col>
       </Row>
-      {/* ----------------------------------------- */}
 
-      {/* --- KHU VỰC BÌNH LUẬN --- */}
       <Row className="mb-5">
         <Col>
             <h4 className="mb-4 border-bottom pb-2">Đánh giá từ khách hàng ({reviews.length})</h4>
-            
             {reviews.length === 0 ? (
                 <p className="text-muted">Chưa có đánh giá nào cho sản phẩm này.</p>
             ) : (
@@ -327,7 +326,6 @@ function ProductDetailPage() {
                         </Card>
                     ))}
 
-                    {/* Phân trang Bình luận */}
                     {totalPages > 1 && (
                         <div className="d-flex justify-content-center align-items-center gap-3 mt-4">
                             <Button 
@@ -354,7 +352,6 @@ function ProductDetailPage() {
         </Col>
       </Row>
 
-      {/* --- KHU VỰC SẢN PHẨM TƯƠNG TỰ (ĐÃ LỌC THEO SUB-CATEGORY) --- */}
       {relatedProducts.length > 0 && (
         <Row className="mt-5">
             <Col>
@@ -369,7 +366,6 @@ function ProductDetailPage() {
             </Col>
         </Row>
       )}
-      {/* ----------------------------------------------------------- */}
 
     </Container>
   );

@@ -1,97 +1,74 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
-import { Container, Carousel, Row, Col, Button } from 'react-bootstrap';
+import { Container, Carousel, Row, Col, Button, Image } from 'react-bootstrap';
+import { Link } from 'react-router-dom'; 
 
-//banner
+// Banner Images
 import firstSlide from '../assets/images/nam.png';
 import secondSlide from '../assets/images/nu.png';
 import thirdSlide from '../assets/images/bannernam.png';
 import fourthSlide from '../assets/images/walk.png';
-import banner from '../assets/images/HomePage/Frame-88072td.png';
+import promoBanner from '../assets/images/HomePage/Frame-88072td.png'; 
 
-// (Chúng ta sẽ tạo 2 file này ngay sau đây)
 import ProductCard from '../components/ProductCard';
 import CategoryTabs from '../components/CategoryTabs';
 
 function HomePage() {
-  // === STATE QUẢN LÝ DỮ LIỆU ===
-  const [products, setProducts] = useState([]);
+  const [newArrivals, setNewArrivals] = useState([]); 
+  const [saleProducts, setSaleProducts] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // === GỌI API ĐỂ LẤY SẢN PHẨM ===
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // "proxy" trong package.json sẽ chuyển hướng /api/products
         const { data } = await api.get('/products');
         
-        // Xáo trộn mảng data và lưu vào state
-        const shuffled = data.sort(() => 0.5 - Math.random());
-        setProducts(shuffled);
+        // 1. Lọc 4 Sản phẩm Mới nhất
+        const sortedByDate = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setNewArrivals(sortedByDate.slice(0, 4));
+
+        // 2. Lọc 4 Sản phẩm Khuyến mãi ngẫu nhiên
+        const discountedItems = data.filter(p => p.discount > 0);
+        const shuffledSale = discountedItems.sort(() => 0.5 - Math.random());
+        setSaleProducts(shuffledSale.slice(0, 4));
         
         setLoading(false);
       } catch (err) {
         setError('Không thể tải sản phẩm.');
         setLoading(false);
-        console.error("Lỗi khi fetch sản phẩm:", err);
       }
     };
 
     fetchProducts();
-  }, []); // [] = Chạy 1 lần khi trang tải
+  }, []);
 
-  // === RENDER SẢN PHẨM NGẪU NHIÊN ===
-  const renderFeaturedProducts = () => {
-    if (loading) return <p>Đang tải sản phẩm...</p>;
+  const renderProductList = (products) => {
+    if (loading) return <div className="text-center py-5">Đang tải sản phẩm...</div>;
     if (error) return <p className="text-danger">{error}</p>;
+    if (products.length === 0) return <p className="text-muted text-center">Chưa có sản phẩm nào.</p>;
 
-    // Lấy 4 sản phẩm đầu tiên từ mảng đã xáo trộn
-    return products.slice(0, 4).map((productItem) => (
-      // productItem ở đây là một inventory item
-      <Col key={productItem._id} sm={6} md={4} lg={3} className="mb-3">
-        {/* Gọi component ProductCard (sẽ tạo ở bước sau) */}
+    return products.map((productItem) => (
+      <Col key={productItem._id} xs={6} md={4} lg={3} className="mb-4">
         <ProductCard product={productItem} />
       </Col>
     ));
   };
 
-
-  // === GIAO DIỆN RENDER ===
   return (
-    // Dùng React.Fragment vì có nhiều section
     <>
       {/* 1. BANNER CAROUSEL */}
-      {/* interval={2000} = tự động trượt mỗi 2 giây */}
-      <Carousel interval={2000} className="mb-5">
+      <Carousel interval={3000} className="mb-4">
         <Carousel.Item>
-          {/* (Chúng ta sẽ thay bằng Link của react-router-dom sau) */}
-          <a href="/men">
-            <img
-              className="d-block w-100"
-              src={thirdSlide}
-              alt="First slide"
-            />
-          </a>
+          <Link to="/men">
+            <img className="d-block w-100" src={thirdSlide} alt="Thời trang Nam" style={{maxHeight: '500px', objectFit: 'cover'}} />
+          </Link>
         </Carousel.Item>
         <Carousel.Item>
-          <a href="/women">
-            <img
-              className="d-block w-100"
-              src={secondSlide}
-              alt="Second slide"
-            />
-          </a>
-        </Carousel.Item>
-        <Carousel.Item>
-          <a href="/collection/sale">
-            <img
-              className="d-block w-100"
-              src={fourthSlide}
-              alt="Third slide"
-            />
-          </a>
+          <Link to="/women">
+            <img className="d-block w-100" src={secondSlide} alt="Thời trang Nữ" style={{maxHeight: '500px', objectFit: 'cover'}} />
+          </Link>
         </Carousel.Item>
       </Carousel>
 
@@ -100,33 +77,68 @@ function HomePage() {
         <CategoryTabs />
       </Container>
 
-      {/* 3. BANNER TĨNH (ĐỒ CHẠY BỘ) */}
-      <Container fluid className="bg-primary text-light p-5 mb-5">
-        <Row className="align-items-center">
-          <Col md={6}>
-            <h1 className="display-4">HƯỚNG DẪN CHỌN SIZE</h1>
-            <p>Chọn size phù hợp với bạn</p>
-            <Button variant="light" href="/phu-kien">XEM NGAY</Button>
-          </Col>
-          <Col md={6}>
-            {/* 
-            <img 
-              src={banner}
-              alt="Đồ chạy bộ" 
-              className="img-fluid"
-            />
-            */}
-          </Col>
+      {/* 3. BANNER HƯỚNG DẪN CHỌN SIZE (ĐÃ ĐỔI MÀU DARK) */}
+      <Container className="mb-5">
+        {/* bg-dark: Nền đen | text-white: Chữ trắng */}
+        <div className="bg-dark text-white p-5 rounded-3 text-center border border-secondary shadow-sm">
+            <Row className="align-items-center justify-content-center">
+                <Col md={8}>
+                    <h3 className="fw-bold text-uppercase mb-3">Bạn băn khoăn về size?</h3>
+                    <p className="text-white-50 mb-4 fs-5">
+                        Xem ngay bảng hướng dẫn chọn size chuẩn xác nhất dành cho người Việt Nam để có trải nghiệm tốt nhất.
+                    </p>
+                    {/* Nút màu trắng (variant="light") để nổi bật trên nền đen */}
+                    <Button 
+                        variant="light" 
+                        size="lg"
+                        className="fw-bold px-5 rounded-pill"
+                        as={Link} 
+                        to="/size-guide"
+                    >
+                        XEM HƯỚNG DẪN SIZE
+                    </Button>
+                </Col>
+            </Row>
+        </div>
+      </Container>
+
+      {/* 4. SẢN PHẨM MỚI */}
+      <Container className="mb-5">
+        <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+            <h3 className="fw-bold mb-0">SẢN PHẨM MỚI</h3>
+            <Link to="/search" className="text-decoration-none fw-bold text-primary">Xem tất cả &rarr;</Link>
+        </div>
+        <Row>
+          {renderProductList(newArrivals)}
         </Row>
       </Container>
 
-      {/* 4. SẢN PHẨM ĐỀ XUẤT (NGẪU NHIÊN) */}
+      {/* 5. BANNER KHUYẾN MÃI */}
       <Container className="mb-5">
-        <h2 className="mb-4">SẢN PHẨM ĐỀ XUẤT</h2>
-        <Row>
-          {renderFeaturedProducts()}
-        </Row>
+        <Link to="/search" title="Xem tất cả sản phẩm khuyến mãi">
+            <div className="position-relative rounded-3 overflow-hidden shadow-sm">
+                <Image src={promoBanner} fluid style={{width: '100%', minHeight: '200px', objectFit: 'cover'}} />
+                <div className="position-absolute top-50 start-50 translate-middle text-center text-white p-3" style={{background: 'rgba(0,0,0,0.4)', borderRadius: '10px'}}>
+                    <h2 className="fw-bold display-5">SIÊU SALE LỄ HỘI</h2>
+                    <p className="fs-5">Giảm giá lên đến 50% cho các sản phẩm mùa đông</p>
+                    <Button variant="light" className="fw-bold px-4 rounded-pill">MUA NGAY</Button>
+                </div>
+            </div>
+        </Link>
       </Container>
+
+      {/* 6. SẢN PHẨM KHUYẾN MÃI */}
+      {saleProducts.length > 0 && (
+        <Container className="mb-5">
+            <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+                <h3 className="fw-bold mb-0 text-danger">⚡ KHUYẾN MÃI HOT</h3>
+                <Link to="/search?sale=true" className="text-decoration-none fw-bold text-danger">Xem tất cả &rarr;</Link>
+            </div>
+            <Row>
+                {renderProductList(saleProducts)}
+            </Row>
+        </Container>
+      )}
     </>
   );
 }

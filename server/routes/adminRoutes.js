@@ -15,7 +15,9 @@ const {
   updateOrderStatus,
   getAllReviews,
   deleteReview,
-  getDashboardStats
+  getDashboardStats,
+  updateBulkDiscounts,
+  fixDataError
 } = require('../controllers/adminController');
 
 const { protect, admin } = require('../middleware/authMiddleware');
@@ -23,16 +25,14 @@ const upload = require('../middleware/uploadMiddleware');
 
 // --- HÀM BẮT LỖI UPLOAD (DEBUG) ---
 const uploadWithErrorHandling = (req, res, next) => {
-  // Gọi hàm upload của multer
   const uploadMiddleware = upload.any();
   
   uploadMiddleware(req, res, (err) => {
     if (err) {
       console.log("------------------------------------------------");
       console.error("❌ LỖI UPLOAD ẢNH (MULTER/CLOUDINARY):");
-      console.error(err); // In lỗi gốc
+      console.error(err); 
       
-      // Kiểm tra lỗi Cloudinary cụ thể
       if (err.message && err.message.includes('Cloudinary')) {
         console.error("👉 GỢI Ý: Kiểm tra file .env xem đã điền API Key chưa?");
       }
@@ -42,23 +42,33 @@ const uploadWithErrorHandling = (req, res, next) => {
         message: 'Lỗi Upload ảnh: ' + (err.message || 'Lỗi không xác định') 
       });
     }
-    // Nếu không lỗi, đi tiếp đến controller
     next();
   });
 };
 // ----------------------------------
 
+// Route chạy fix lỗi
+router.get('/fix-data', protect, admin, fixDataError);
+
 // --- QUẢN LÝ SẢN PHẨM ---
+
+// 1. Lấy danh sách & Check SKU
 router.get('/products', protect, admin, getAllProductsAdmin);
 router.post('/products/check-sku', protect, admin, checkSku);
 
-// SỬ DỤNG HÀM BẮT LỖI MỚI Ở ĐÂY
+// 2. Cập nhật Giảm giá hàng loạt 
+// (QUAN TRỌNG: Phải đặt dòng này TRƯỚC route /:id để tránh xung đột đường dẫn)
+router.put('/products/bulk-discount', protect, admin, updateBulkDiscounts);
+
+// 3. Tạo sản phẩm mới
 router.post('/products', protect, admin, uploadWithErrorHandling, createProduct);
 
-// (Các route khác cũng nên dùng nếu có upload, tạm thời giữ nguyên update)
+// 4. Cập nhật 1 sản phẩm cụ thể (Route này có :id nên phải nằm dưới các route cụ thể khác)
 router.put('/products/:id', protect, admin, uploadWithErrorHandling, updateProduct);
 
+// 5. Xóa sản phẩm
 router.delete('/products/:id', protect, admin, deleteInventory);
+
 
 // --- QUẢN LÝ ĐƠN HÀNG ---
 router.get('/orders', protect, admin, getAllOrders);

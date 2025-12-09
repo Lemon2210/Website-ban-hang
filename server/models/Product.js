@@ -27,6 +27,12 @@ const productSchema = new mongoose.Schema({
     required: true,
     default: 0,
   },
+  discount: {
+    type: Number,
+    default: 0, // Mặc định là 0% (không giảm)
+    min: 0,
+    max: 100
+  },
   gender: {
     type: String,
     enum: ['Men', 'Women', 'Unisex', 'Kids'],

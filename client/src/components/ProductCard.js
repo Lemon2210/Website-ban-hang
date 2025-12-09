@@ -1,27 +1,53 @@
 import React from 'react';
 import { Card, Button } from 'react-bootstrap';
-// Import Link để click vào thẻ sẽ chuyển trang
 import { Link } from 'react-router-dom';
 
 function ProductCard({ product }) {
-  // BÂY GIỜ: `product` chính là SẢN PHẨM GỐC đã được "làm giàu"
-  // Nó có cấu trúc: { _id, name, price, imageUrl, ... }
-  
   if (!product) {
-    return null; // Tránh lỗi nếu dữ liệu bị thiếu
+    return null; 
   }
+
+  // --- LOGIC TÍNH TOÁN GIÁ ---
+  const originalPrice = product.price || 0;
+  const discount = product.discount || 0; // Lấy % giảm giá từ DB
+  const hasDiscount = discount > 0;
   
+  // Tính giá sau khi giảm
+  const finalPrice = hasDiscount 
+    ? originalPrice * (1 - discount / 100) 
+    : originalPrice;
+  // ---------------------------
+
   return (
-    // Link đến trang chi tiết SẢN PHẨM (dùng product._id)
     <Link to={`/product/${product._id}`} style={{ textDecoration: 'none' }}>
-      <Card className="h-100 shadow-sm border-0">
+      {/* Thêm position-relative để căn chỉnh Badge giảm giá */}
+      <Card className="h-100 shadow-sm border-0 position-relative">
+        
+        {/* --- BADGE GIẢM GIÁ (HIỂN THỊ NẾU CÓ DISCOUNT) --- */}
+        {hasDiscount && (
+            <div 
+                className="position-absolute bg-danger text-white fw-bold px-2 py-1 rounded"
+                style={{ 
+                    top: '10px', 
+                    right: '10px', 
+                    fontSize: '0.85rem', 
+                    zIndex: 10,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+            >
+                -{discount}%
+            </div>
+        )}
+        {/* ------------------------------------------------ */}
+
         <Card.Img 
           variant="top" 
-          src={product.imageUrl} // <-- SỬA LẠI: Lấy trực tiếp
-          alt={product.name}      // <-- SỬA LẠI: Lấy trực tiếp
+          src={product.imageUrl || product.image} // Fallback phòng khi tên trường ảnh khác nhau
+          alt={product.name}
           style={{ height: '300px', objectFit: 'cover' }}
         />
-        <Card.Body>
+        
+        <Card.Body className="d-flex flex-column">
           <Card.Title 
             as="h6" 
             className="text-dark"
@@ -30,16 +56,33 @@ function ProductCard({ product }) {
               overflow: 'hidden', 
               textOverflow: 'ellipsis' 
             }}
+            title={product.name} // Tooltip khi hover tên dài
           >
-            {product.name} {/* <-- SỬA LẠI: Lấy trực tiếp */}
+            {product.name}
           </Card.Title>
-          <Card.Text className="fw-bold">
-            {/* Lấy giá đã "mượn" */}
-            {product.price ? `${product.price.toLocaleString('vi-VN')}₫` : 'Liên hệ'}
-          </Card.Text>
-          {/* Nút này sẽ dẫn người dùng đến trang chi tiết, 
-              vì nó nằm trong <Link> */}
-          <Button variant="dark" className="w-100" as="div">
+          
+          {/* --- KHU VỰC HIỂN THỊ GIÁ (ĐÃ SỬA) --- */}
+          <div className="mt-1 mb-3">
+            {hasDiscount ? (
+                // Trường hợp có giảm giá: Hiện giá mới + Giá cũ gạch ngang
+                <div className="d-flex align-items-center gap-2">
+                    <span className="fw-bold text-danger fs-5">
+                        {finalPrice.toLocaleString('vi-VN')}₫
+                    </span>
+                    <span className="text-muted text-decoration-line-through small">
+                        {originalPrice.toLocaleString('vi-VN')}₫
+                    </span>
+                </div>
+            ) : (
+                // Trường hợp bình thường
+                <span className="fw-bold text-dark fs-5">
+                    {originalPrice > 0 ? `${originalPrice.toLocaleString('vi-VN')}₫` : 'Liên hệ'}
+                </span>
+            )}
+          </div>
+          {/* ------------------------------------ */}
+
+          <Button variant="dark" className="w-100 mt-auto" as="div">
             Xem chi tiết
           </Button>
         </Card.Body>

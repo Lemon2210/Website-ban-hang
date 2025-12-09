@@ -53,12 +53,16 @@ function ProductEditPage() {
   const [gender, setGender] = useState('Men');
   const [basePrice, setBasePrice] = useState(''); 
   const [baseSku, setBaseSku] = useState(''); 
+  
+  // --- THÊM STATE GIẢM GIÁ ---
+  const [discount, setDiscount] = useState(0); 
+  // ---------------------------
 
-  // --- STATE DANH MỤC 3 CẤP (ĐÃ SỬA) ---
-  const [categories, setCategories] = useState([]); // Tất cả danh mục từ API
-  const [mainCategory, setMainCategory] = useState(''); // ID Cấp 1
-  const [subCategory, setSubCategory] = useState('');   // ID Cấp 2
-  const [brandCategory, setBrandCategory] = useState(''); // ID Cấp 3
+  // --- STATE DANH MỤC 3 CẤP ---
+  const [categories, setCategories] = useState([]); 
+  const [mainCategory, setMainCategory] = useState(''); 
+  const [subCategory, setSubCategory] = useState(''); 
+  const [brandCategory, setBrandCategory] = useState(''); 
 
   // --- State Biến thể ---
   const [selectedColors, setSelectedColors] = useState([]);
@@ -103,9 +107,11 @@ function ProductEditPage() {
         setDescription(product.description);
         setGender(product.gender);
         
-        // Load Danh mục (Lấy ID)
-        // Giả sử API trả về object populate, ta lấy ._id
-        // Nếu API trả về ID string thì lấy luôn
+        // --- LOAD GIẢM GIÁ ---
+        setDiscount(product.discount || 0);
+        // ---------------------
+
+        // Load Danh mục
         setMainCategory(product.category?._id || product.category || '');
         setSubCategory(product.subCategory?._id || product.subCategory || '');
         setBrandCategory(product.brand?._id || product.brand || '');
@@ -141,7 +147,6 @@ function ProductEditPage() {
         
         if (variants.length > 0) {
           setBasePrice(variants[0].price);
-          // Tách SKU gốc từ SKU biến thể đầu tiên (VD: POLO-BLK-S -> POLO)
           const firstSku = variants[0].sku || '';
           const parts = firstSku.split('-');
           if (parts.length >= 3) {
@@ -157,17 +162,16 @@ function ProductEditPage() {
         setLoading(false);
       }
     };
-    if (categories.length > 0) { // Chỉ load sản phẩm khi đã có danh mục để map ID
+    if (categories.length > 0) {
         fetchProductData();
     }
-  }, [productId, categories.length]); // Phụ thuộc vào categories.length để đảm bảo danh mục load xong mới load sản phẩm
+  }, [productId, categories.length]);
 
-  // --- LOGIC CHỈNH SỬA BIẾN THỂ (GIỮ NGUYÊN) ---
+  // --- LOGIC CHỈNH SỬA BIẾN THỂ ---
   const toggleColor = (colorName) => {
     const newColors = selectedColors.includes(colorName) 
         ? selectedColors.filter(c => c !== colorName) 
         : [...selectedColors, colorName];
-    
     setSelectedColors(newColors);
     regenerateVariants(newColors, selectedSizes);
   };
@@ -176,7 +180,6 @@ function ProductEditPage() {
     const newSizes = selectedSizes.includes(sizeName) 
         ? selectedSizes.filter(s => s !== sizeName) 
         : [...selectedSizes, sizeName];
-    
     setSelectedSizes(newSizes);
     regenerateVariants(selectedColors, newSizes);
   };
@@ -236,11 +239,13 @@ function ProductEditPage() {
     formData.append('description', description);
     formData.append('gender', gender);
     
-    // --- GỬI ID DANH MỤC ---
+    // --- GỬI GIẢM GIÁ ---
+    formData.append('discount', discount);
+    // --------------------
+
     formData.append('category', mainCategory);
     if(subCategory) formData.append('subCategory', subCategory);
     if(brandCategory) formData.append('brand', brandCategory);
-    // -----------------------
 
     formData.append('variants', JSON.stringify(generatedVariants));
 
@@ -297,7 +302,6 @@ function ProductEditPage() {
                   </div>
                 </Form.Group>
 
-                {/* --- KHU VỰC DANH MỤC 3 CẤP (ĐÃ SỬA) --- */}
                 <Row>
                     <Col md={4}>
                         <Form.Group className="mb-3">
@@ -317,7 +321,6 @@ function ProductEditPage() {
                             </Form.Select>
                         </Form.Group>
                     </Col>
-                    
                     <Col md={4}>
                         <Form.Group className="mb-3">
                             <Form.Label>Danh mục phụ</Form.Label>
@@ -336,8 +339,6 @@ function ProductEditPage() {
                             </Form.Select>
                         </Form.Group>
                     </Col>
-
-                    {/* Hiển thị Brand khi đã chọn cấp 2 và có brand con */}
                     {subCategory && brandCategories.length > 0 && (
                         <Col md={4}>
                             <Form.Group className="mb-3">
@@ -355,19 +356,34 @@ function ProductEditPage() {
                         </Col>
                     )}
                 </Row>
-                {/* ------------------------------------- */}
 
                 <Form.Group className="mb-3"><Form.Label>Mô tả</Form.Label><Form.Control as="textarea" rows={4} value={description} onChange={e => setDescription(e.target.value)} /></Form.Group>
                 
-                {/* Thêm ô nhập giá gốc để sửa nhanh */}
                 <Row>
-                    <Col md={6}>
+                    <Col md={4}>
                         <Form.Group className="mb-3">
                             <Form.Label>Giá bán chung (VND)</Form.Label>
                             <Form.Control type="number" value={basePrice} onChange={e => setBasePrice(e.target.value)} />
                         </Form.Group>
                     </Col>
-                    <Col md={6}>
+                    
+                    {/* --- Ô NHẬP GIẢM GIÁ (MỚI) --- */}
+                    <Col md={4}>
+                        <Form.Group className="mb-3">
+                            <Form.Label className="text-danger fw-bold">Giảm giá (%)</Form.Label>
+                            <Form.Control 
+                                type="number" 
+                                min="0" 
+                                max="100" 
+                                value={discount} 
+                                onChange={e => setDiscount(e.target.value)} 
+                                placeholder="Nhập % giảm"
+                            />
+                        </Form.Group>
+                    </Col>
+                    {/* ----------------------------- */}
+
+                    <Col md={4}>
                         <Form.Group className="mb-3">
                             <Form.Label>Mã SKU gốc</Form.Label>
                             <Form.Control type="text" value={baseSku} onChange={e => setBaseSku(e.target.value)} />
@@ -378,7 +394,6 @@ function ProductEditPage() {
               </Card.Body>
             </Card>
 
-            {/* 2. Biến thể (Màu & Size) */}
             <Card className="mb-4 shadow-sm">
               <Card.Header as="h5" className="bg-white py-3">2. Biến thể (Màu & Size)</Card.Header>
               <Card.Body>
@@ -401,7 +416,6 @@ function ProductEditPage() {
               </Card.Body>
             </Card>
 
-            {/* 3. Bảng Chi tiết */}
             <Card className="mb-4 shadow-sm border-primary">
                 <Card.Header as="h5" className="bg-primary text-white py-3">3. Chi tiết Tồn kho & Giá</Card.Header>
                 <Card.Body className="p-0">
@@ -440,7 +454,6 @@ function ProductEditPage() {
         </Row>
       </Form>
 
-      {/* --- MODAL XÁC NHẬN --- */}
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Xác nhận cập nhật</Modal.Title>
