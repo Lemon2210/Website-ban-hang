@@ -10,8 +10,8 @@ function ProductListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // --- STATE TÌM KIẾM (MỚI) ---
-  const [searchTerm, setSearchTerm] = useState(''); // Lưu từ khóa tìm kiếm
+  // --- STATE TÌM KIẾM ---
+  const [searchTerm, setSearchTerm] = useState(''); 
 
   // --- STATE CHO MODAL XÓA ---
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -27,6 +27,7 @@ function ProductListPage() {
     try {
       setLoading(true);
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      // API này trả về danh sách Inventory (biến thể) đã populate product
       const { data } = await api.get('/admin/products', config);
       setProducts(data);
       setLoading(false);
@@ -41,18 +42,22 @@ function ProductListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // --- 2. LOGIC LỌC SẢN PHẨM (REALTIME SEARCH) ---
-  // Tạo ra một danh sách mới dựa trên từ khóa tìm kiếm
+  // --- 2. LOGIC LỌC SẢN PHẨM ---
   const filteredProducts = products.filter((item) => {
-    // Chuyển tất cả về chữ thường để tìm kiếm không phân biệt hoa/thường
     const term = searchTerm.toLowerCase();
+    
+    // Lấy thông tin để tìm kiếm
     const name = item.product?.name?.toLowerCase() || '';
     const sku = item.sku?.toLowerCase() || '';
+    
+    // Lấy tên danh mục để tìm kiếm (nếu có populate)
+    const catName = item.product?.category?.name?.toLowerCase() || '';
+    const subCatName = item.product?.subCategory?.name?.toLowerCase() || '';
+    const brandName = item.product?.brand?.name?.toLowerCase() || '';
 
-    // Kiểm tra xem Tên HOẶC SKU có chứa từ khóa không
-    return name.includes(term) || sku.includes(term);
+    // Tìm kiếm trong Tên, SKU, hoặc Danh mục/Brand
+    return name.includes(term) || sku.includes(term) || catName.includes(term) || subCatName.includes(term) || brandName.includes(term);
   });
-  // --------------------------------------------------
 
   const getStockInfo = (stockArray) => {
     if (!stockArray) return { totalStock: 0, status: "Hết hàng", variant: "danger" };
@@ -100,7 +105,6 @@ function ProductListPage() {
     if (loading) return <div className="text-center my-5"><Spinner animation="border" /></div>;
     if (error) return <Alert variant="danger">{error}</Alert>;
     
-    // Nếu lọc xong mà không có sản phẩm nào
     if (filteredProducts.length === 0) {
         return <div className="text-center my-5 text-muted">Không tìm thấy sản phẩm nào khớp với "{searchTerm}".</div>;
     }
@@ -111,7 +115,9 @@ function ProductListPage() {
           <tr>
             <th>Sản phẩm</th>
             <th>Mã (SKU)</th>
-            <th>Loại</th>
+            {/* --- CẬP NHẬT CỘT DANH MỤC --- */}
+            <th>Danh mục / Brand</th> 
+            {/* ----------------------------- */}
             <th>Giá (VND)</th>
             <th>SL</th>
             <th>Trạng thái</th>
@@ -119,10 +125,17 @@ function ProductListPage() {
           </tr>
         </thead>
         <tbody>
-          {/* LƯU Ý: Chúng ta dùng `filteredProducts` thay vì `products` */}
           {filteredProducts.map((item) => {
             const { totalStock, status, variant, text } = getStockInfo(item.stock);
             
+            // Lấy thông tin danh mục từ product đã populate (giả sử backend đã populate)
+            // Nếu backend chưa populate sâu (deep populate category), có thể chỉ hiện ID
+            // Bạn cần đảm bảo controller backend có .populate('product.category') ...
+            
+            const catName = item.product?.category?.name || '---';
+            const subName = item.product?.subCategory?.name;
+            const brandName = item.product?.brand?.name;
+
             return (
               <tr key={item._id}>
                 <td>
@@ -142,7 +155,17 @@ function ProductListPage() {
                   </div>
                 </td>
                 <td>{item.sku}</td>
-                <td>{item.product?.category?.sub}</td>
+                
+                {/* --- HIỂN THỊ DANH MỤC ĐA CẤP --- */}
+                <td>
+                    <div className="d-flex flex-column" style={{fontSize: '0.9rem'}}>
+                        <span className="fw-bold text-primary">{catName}</span>
+                        {subName && <span className="text-muted"><small>↳ {subName}</small></span>}
+                        {brandName && <span className="text-dark fw-bold"><small>↳ {brandName}</small></span>}
+                    </div>
+                </td>
+                {/* -------------------------------- */}
+
                 <td>{item.price.toLocaleString('vi-VN')}₫</td>
                 <td>{totalStock}</td>
                 <td>
@@ -200,9 +223,8 @@ function ProductListPage() {
               <Search className="text-muted" />
             </InputGroup.Text>
             <FormControl 
-              placeholder="Tìm kiếm sản phẩm theo tên hoặc SKU..." 
+              placeholder="Tìm kiếm sản phẩm, SKU, hoặc danh mục..." 
               className="border-start-0 ps-0"
-              // --- KẾT NỐI INPUT VỚI STATE ---
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />

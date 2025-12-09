@@ -1,8 +1,19 @@
 import React from 'react';
 import { Nav } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap'; 
-// 1. THÊM ICON BarChartLine
-import { HouseDoor, BoxSeam, ListCheck, Gear, People, PersonBadge, Star, Tags, BoxArrowRight, BarChartLine } from 'react-bootstrap-icons'; 
+import { 
+  HouseDoor, 
+  BoxSeam, 
+  ListCheck, 
+  Gear, 
+  People, 
+  PersonBadge, 
+  Star, 
+  Tags, 
+  BoxArrowRight, 
+  BarChartLine, 
+  Grid // <-- 1. IMPORT THÊM ICON GRID CHO DANH MỤC
+} from 'react-bootstrap-icons'; 
 import { Button } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,14 +29,12 @@ function AdminSidebar() {
       
       <Nav className="flex-column flex-grow-1 overflow-auto">
         
-        {/* 2. CẬP NHẬT MỤC NÀY */}
         <LinkContainer to="/admin/dashboard">
           <Nav.Link className="text-white d-flex align-items-center mb-2">
-            <BarChartLine size={20} className="me-2" /> {/* Đổi icon */}
-            Thống kê {/* Đổi tên */}
+            <BarChartLine size={20} className="me-2" />
+            Thống kê
           </Nav.Link>
         </LinkContainer>
-        {/* ------------------- */}
 
         <LinkContainer to="/admin/products">
           <Nav.Link className="text-white d-flex align-items-center mb-2">
@@ -34,7 +43,15 @@ function AdminSidebar() {
           </Nav.Link>
         </LinkContainer>
 
-        {/* ... (Các mục khác giữ nguyên: Orders, Users, Customers, Coupons, Reviews, Settings) ... */}
+        {/* --- 2. THÊM MỤC QUẢN LÝ DANH MỤC TẠI ĐÂY --- */}
+        <LinkContainer to="/admin/categories">
+          <Nav.Link className="text-white d-flex align-items-center mb-2">
+            <Grid size={20} className="me-2" />
+            Quản lý Danh mục
+          </Nav.Link>
+        </LinkContainer>
+        {/* ------------------------------------------- */}
+
         <LinkContainer to="/admin/orders">
           <Nav.Link className="text-white d-flex align-items-center mb-2">
             <ListCheck size={20} className="me-2" />
@@ -70,12 +87,14 @@ function AdminSidebar() {
           </Nav.Link>
         </LinkContainer>
 
-        <LinkContainer to="/">
-          <Nav.Link className="text-white d-flex align-items-center mb-2">
-            <HouseDoor size={20} className="me-2" />
-            Trang chủ
-          </Nav.Link>
-        </LinkContainer>
+        <div className="mt-4 border-top border-secondary pt-2">
+            <LinkContainer to="/">
+            <Nav.Link className="text-white d-flex align-items-center mb-2">
+                <HouseDoor size={20} className="me-2" />
+                Về Trang chủ
+            </Nav.Link>
+            </LinkContainer>
+        </div>
 
       </Nav>
 

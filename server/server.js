@@ -51,6 +51,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const couponRoutes = require('./routes/couponRoutes'); // <-- 1. IMPORT LẠI
 const reviewRoutes = require('./routes/reviewRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
@@ -61,6 +62,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/coupons', couponRoutes); // <-- 2. SỬ DỤNG LẠI (Đường dẫn là /api/coupons)
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // --- 5. KHỞI CHẠY SERVER ---
 const PORT = process.env.PORT || 5000;

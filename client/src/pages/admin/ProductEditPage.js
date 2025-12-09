@@ -6,7 +6,7 @@ import { CloudUpload } from 'react-bootstrap-icons';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
 
-// Dữ liệu mẫu
+// --- HẰNG SỐ ---
 const AVAILABLE_COLORS = [
   { name: "Black", hex: "#000000" }, { name: "White", hex: "#FFFFFF" },
   { name: "Navy", hex: "#000080" }, { name: "Red", hex: "#FF0000" },
@@ -15,7 +15,7 @@ const AVAILABLE_COLORS = [
 ];
 const AVAILABLE_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
-// Component Upload ảnh con (Giữ nguyên)
+// --- UPLOAD ẢNH (GIỮ NGUYÊN) ---
 const ColorImageUpload = ({ colorName, currentPreview, onImageSelect }) => {
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles?.[0]) onImageSelect(colorName, acceptedFiles[0]);
@@ -43,7 +43,7 @@ const ColorImageUpload = ({ colorName, currentPreview, onImageSelect }) => {
 };
 
 function ProductEditPage() {
-  const { id: productId } = useParams(); // Lấy ID sản phẩm từ URL
+  const { id: productId } = useParams(); 
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -51,10 +51,14 @@ function ProductEditPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [gender, setGender] = useState('Men');
-  const [mainCategory, setMainCategory] = useState('Áo');
-  const [subCategory, setSubCategory] = useState('');
   const [basePrice, setBasePrice] = useState(''); 
-  const [baseSku, setBaseSku] = useState('');     
+  const [baseSku, setBaseSku] = useState(''); 
+
+  // --- STATE DANH MỤC 3 CẤP (ĐÃ SỬA) ---
+  const [categories, setCategories] = useState([]); // Tất cả danh mục từ API
+  const [mainCategory, setMainCategory] = useState(''); // ID Cấp 1
+  const [subCategory, setSubCategory] = useState('');   // ID Cấp 2
+  const [brandCategory, setBrandCategory] = useState(''); // ID Cấp 3
 
   // --- State Biến thể ---
   const [selectedColors, setSelectedColors] = useState([]);
@@ -62,53 +66,71 @@ function ProductEditPage() {
   const [generatedVariants, setGeneratedVariants] = useState([]);
 
   // --- State Ảnh ---
-  const [colorImages, setColorImages] = useState({}); // File mới (nếu có)
-  const [colorPreviews, setColorPreviews] = useState({}); // URL (cũ hoặc mới)
+  const [colorImages, setColorImages] = useState({}); 
+  const [colorPreviews, setColorPreviews] = useState({});
 
   // --- State Hệ thống ---
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true); // Mặc định true để load dữ liệu
-  const [showConfirmModal, setShowConfirmModal] = useState(false); // Modal xác nhận
+  const [loading, setLoading] = useState(true); 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // --- LOAD DỮ LIỆU BAN ĐẦU ---
+  // --- 1. TẢI DANH MỤC TỪ API ---
+  useEffect(() => {
+    const fetchCategories = async () => {
+        try {
+            const { data } = await api.get('/categories');
+            setCategories(data);
+        } catch (err) {
+            console.error("Lỗi tải danh mục", err);
+        }
+    };
+    fetchCategories();
+  }, []);
+
+  // --- 2. LỌC DANH MỤC ---
+  const parentCategories = categories.filter(c => !c.parent);
+  const childCategories = categories.filter(c => c.parent && c.parent._id === mainCategory);
+  const brandCategories = categories.filter(c => c.parent && c.parent._id === subCategory);
+
+  // --- 3. LOAD DỮ LIỆU SẢN PHẨM ---
   useEffect(() => {
     const fetchProductData = async () => {
       try {
-        // Gọi API lấy chi tiết sản phẩm (API này trả về { product, variants })
         const { data } = await api.get(`/products/${productId}`);
-        
         const { product, variants } = data;
 
-        // 1. Điền thông tin chung
         setName(product.name);
         setDescription(product.description);
         setGender(product.gender);
-        setMainCategory(product.category.main);
-        setSubCategory(product.category.sub);
         
-        // 2. Phân tích biến thể để lấy Màu và Size đã chọn
+        // Load Danh mục (Lấy ID)
+        // Giả sử API trả về object populate, ta lấy ._id
+        // Nếu API trả về ID string thì lấy luôn
+        setMainCategory(product.category?._id || product.category || '');
+        setSubCategory(product.subCategory?._id || product.subCategory || '');
+        setBrandCategory(product.brand?._id || product.brand || '');
+        
+        // Load Màu & Size
         const existingColors = [...new Set(variants.map(v => v.attributes.color))];
         const existingSizes = [...new Set(variants.map(v => v.attributes.size))];
         
         setSelectedColors(existingColors);
         setSelectedSizes(existingSizes);
 
-        // 3. Điền dữ liệu vào bảng biến thể và ảnh
+        // Load Biến thể
         const loadedVariants = [];
         const loadedPreviews = {};
 
         variants.forEach(v => {
-          // Lưu thông tin biến thể
           loadedVariants.push({
             color: v.attributes.color,
             size: v.attributes.size,
             price: v.price,
             sku: v.sku,
             quantity: v.stock[0]?.quantity || 0,
-            imageUrl: v.imageUrl // Lưu URL ảnh cũ
+            imageUrl: v.imageUrl 
           });
 
-          // Lưu preview ảnh (chỉ cần làm 1 lần cho mỗi màu)
           if (!loadedPreviews[v.attributes.color]) {
             loadedPreviews[v.attributes.color] = v.imageUrl;
           }
@@ -117,11 +139,16 @@ function ProductEditPage() {
         setGeneratedVariants(loadedVariants);
         setColorPreviews(loadedPreviews);
         
-        // Lấy giá và sku mẫu từ biến thể đầu tiên
         if (variants.length > 0) {
           setBasePrice(variants[0].price);
-          // Base SKU có thể cắt từ SKU biến thể (ví dụ POLO-BLK-S -> POLO)
-          // Ở đây ta tạm để trống hoặc lấy giá trị cũ nếu muốn
+          // Tách SKU gốc từ SKU biến thể đầu tiên (VD: POLO-BLK-S -> POLO)
+          const firstSku = variants[0].sku || '';
+          const parts = firstSku.split('-');
+          if (parts.length >= 3) {
+              setBaseSku(parts.slice(0, parts.length - 2).join('-'));
+          } else {
+              setBaseSku(firstSku);
+          }
         }
 
         setLoading(false);
@@ -130,21 +157,13 @@ function ProductEditPage() {
         setLoading(false);
       }
     };
-    fetchProductData();
-  }, [productId]);
+    if (categories.length > 0) { // Chỉ load sản phẩm khi đã có danh mục để map ID
+        fetchProductData();
+    }
+  }, [productId, categories.length]); // Phụ thuộc vào categories.length để đảm bảo danh mục load xong mới load sản phẩm
 
-  // --- LOGIC CHỈNH SỬA (Giống trang Create) ---
-  // ... (toggleColor, toggleSize, handleVariantChange, handleImageSelect giữ nguyên logic nhưng cần điều chỉnh nhẹ) ...
-  
-  // Khi toggle màu/size, ta cần cập nhật lại generatedVariants mà không làm mất dữ liệu cũ
-  // Nhưng để đơn giản cho bài toán Edit, ta sẽ KHÔNG dùng useEffect tự động sinh biến thể nữa
-  // Mà ta sẽ dùng hàm thủ công khi user tick chọn
-  
+  // --- LOGIC CHỈNH SỬA BIẾN THỂ (GIỮ NGUYÊN) ---
   const toggleColor = (colorName) => {
-    // (Logic thêm/bớt màu và cập nhật bảng biến thể - Phức tạp hơn Create)
-    // Để đơn giản hóa: Ta cho phép chọn lại từ đầu hoặc giữ nguyên logic nhưng cẩn thận
-    // Ở đây tôi sẽ dùng lại logic của Create nhưng cần cẩn thận với dữ liệu cũ
-    
     const newColors = selectedColors.includes(colorName) 
         ? selectedColors.filter(c => c !== colorName) 
         : [...selectedColors, colorName];
@@ -162,24 +181,21 @@ function ProductEditPage() {
     regenerateVariants(selectedColors, newSizes);
   };
 
-  // Hàm tái tạo bảng biến thể (giữ lại dữ liệu cũ nếu có)
   const regenerateVariants = (colors, sizes) => {
     const newVariants = [];
     colors.forEach(color => {
       sizes.forEach(size => {
-        // Tìm xem trong bảng hiện tại đã có dòng này chưa
         const existing = generatedVariants.find(v => v.color === color && v.size === size);
         if (existing) {
-          newVariants.push(existing); // Giữ nguyên
+          newVariants.push(existing);
         } else {
-          // Tạo mới
           const autoSku = baseSku ? `${baseSku}-${color.toUpperCase()}-${size}` : '';
           newVariants.push({
             color, size,
             price: basePrice || 0,
             sku: autoSku,
             quantity: 0,
-            imageUrl: colorPreviews[color] || '' // Dùng ảnh nếu đã có
+            imageUrl: colorPreviews[color] || ''
           });
         }
       });
@@ -196,24 +212,22 @@ function ProductEditPage() {
   const handleImageSelect = (color, file) => {
     setColorImages(prev => ({ ...prev, [color]: file }));
     setColorPreviews(prev => ({ ...prev, [color]: URL.createObjectURL(file) }));
-    
-    // Cập nhật imageUrl cho các biến thể có màu này (để hiển thị đúng nếu chưa save)
-    // (Thực tế backend sẽ xử lý file, ở đây chỉ là UI)
   };
 
   // --- XỬ LÝ NÚT LƯU ---
   const handleSaveClick = (e) => {
     e.preventDefault();
-    // Kiểm tra validation cơ bản
+    if (!mainCategory) {
+        setError('Vui lòng chọn danh mục chính');
+        return;
+    }
     if (generatedVariants.length === 0) {
         setError('Vui lòng chọn ít nhất 1 biến thể.');
         return;
     }
-    // Hiện Modal xác nhận
     setShowConfirmModal(true);
   };
 
-  // --- GỌI API UPDATE ---
   const confirmUpdate = async () => {
     setLoading(true);
     const formData = new FormData();
@@ -221,11 +235,15 @@ function ProductEditPage() {
     formData.append('name', name);
     formData.append('description', description);
     formData.append('gender', gender);
-    formData.append('mainCategory', mainCategory);
-    formData.append('subCategory', subCategory);
+    
+    // --- GỬI ID DANH MỤC ---
+    formData.append('category', mainCategory);
+    if(subCategory) formData.append('subCategory', subCategory);
+    if(brandCategory) formData.append('brand', brandCategory);
+    // -----------------------
+
     formData.append('variants', JSON.stringify(generatedVariants));
 
-    // Gửi các file ảnh MỚI
     Object.keys(colorImages).forEach(color => {
       formData.append(`image_${color}`, colorImages[color]);
     });
@@ -237,7 +255,7 @@ function ProductEditPage() {
           Authorization: `Bearer ${user.token}`,
         },
       };
-      await api.put(`/admin/products/${productId}`, formData, config); // Gọi PUT
+      await api.put(`/admin/products/${productId}`, formData, config);
       
       setShowConfirmModal(false);
       setLoading(false);
@@ -262,7 +280,6 @@ function ProductEditPage() {
       <Form onSubmit={handleSaveClick}>
         <Row>
           <Col lg={8}>
-            {/* 1. Thông tin chung (Giống trang Create) */}
             <Card className="mb-4 shadow-sm">
               <Card.Header as="h5" className="bg-white py-3">1. Thông tin chung</Card.Header>
               <Card.Body>
@@ -270,6 +287,7 @@ function ProductEditPage() {
                     <Form.Label>Tên Sản phẩm (*)</Form.Label>
                     <Form.Control type="text" required value={name} onChange={e => setName(e.target.value)} />
                 </Form.Group>
+                
                 <Form.Group className="mb-3">
                   <Form.Label>Giới tính (*)</Form.Label>
                   <div className="d-flex gap-3">
@@ -278,23 +296,93 @@ function ProductEditPage() {
                     ))}
                   </div>
                 </Form.Group>
+
+                {/* --- KHU VỰC DANH MỤC 3 CẤP (ĐÃ SỬA) --- */}
+                <Row>
+                    <Col md={4}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Danh mục chính</Form.Label>
+                            <Form.Select 
+                                value={mainCategory} 
+                                onChange={e => {
+                                    setMainCategory(e.target.value);
+                                    setSubCategory('');
+                                    setBrandCategory('');
+                                }}
+                            >
+                                <option value="">-- Chọn loại --</option>
+                                {parentCategories.map(c => (
+                                    <option key={c._id} value={c._id}>{c.name}</option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+                    </Col>
+                    
+                    <Col md={4}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Danh mục phụ</Form.Label>
+                            <Form.Select 
+                                value={subCategory} 
+                                onChange={e => {
+                                    setSubCategory(e.target.value);
+                                    setBrandCategory('');
+                                }}
+                                disabled={!mainCategory}
+                            >
+                                <option value="">-- Chọn chi tiết --</option>
+                                {childCategories.map(c => (
+                                    <option key={c._id} value={c._id}>{c.name}</option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+                    </Col>
+
+                    {/* Hiển thị Brand khi đã chọn cấp 2 và có brand con */}
+                    {subCategory && brandCategories.length > 0 && (
+                        <Col md={4}>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Thương hiệu</Form.Label>
+                                <Form.Select 
+                                    value={brandCategory} 
+                                    onChange={e => setBrandCategory(e.target.value)}
+                                >
+                                    <option value="">-- Chọn Brand --</option>
+                                    {brandCategories.map(c => (
+                                        <option key={c._id} value={c._id}>{c.name}</option>
+                                    ))}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                    )}
+                </Row>
+                {/* ------------------------------------- */}
+
+                <Form.Group className="mb-3"><Form.Label>Mô tả</Form.Label><Form.Control as="textarea" rows={4} value={description} onChange={e => setDescription(e.target.value)} /></Form.Group>
+                
+                {/* Thêm ô nhập giá gốc để sửa nhanh */}
                 <Row>
                     <Col md={6}>
-                        <Form.Group className="mb-3"><Form.Label>Danh mục chính</Form.Label><Form.Select value={mainCategory} onChange={e => setMainCategory(e.target.value)}><option value="Áo">Áo</option><option value="Quần">Quần</option><option value="Phụ kiện">Phụ kiện</option></Form.Select></Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Giá bán chung (VND)</Form.Label>
+                            <Form.Control type="number" value={basePrice} onChange={e => setBasePrice(e.target.value)} />
+                        </Form.Group>
                     </Col>
                     <Col md={6}>
-                        <Form.Group className="mb-3"><Form.Label>Danh mục phụ</Form.Label><Form.Control type="text" value={subCategory} onChange={e => setSubCategory(e.target.value)} /></Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Mã SKU gốc</Form.Label>
+                            <Form.Control type="text" value={baseSku} onChange={e => setBaseSku(e.target.value)} />
+                        </Form.Group>
                     </Col>
                 </Row>
-                <Form.Group className="mb-3"><Form.Label>Mô tả</Form.Label><Form.Control as="textarea" rows={4} value={description} onChange={e => setDescription(e.target.value)} /></Form.Group>
+
               </Card.Body>
             </Card>
 
-            {/* 2. Chọn Màu & Size */}
+            {/* 2. Biến thể (Màu & Size) */}
             <Card className="mb-4 shadow-sm">
               <Card.Header as="h5" className="bg-white py-3">2. Biến thể (Màu & Size)</Card.Header>
               <Card.Body>
-                 <div className="mb-3">
+                  <div className="mb-3">
                     <Form.Label className="fw-bold">Size:</Form.Label>
                     <div className="d-flex flex-wrap gap-2">
                         {AVAILABLE_SIZES.map(size => (
@@ -335,7 +423,6 @@ function ProductEditPage() {
           </Col>
 
           <Col lg={4}>
-             {/* 4. Ảnh */}
              <Card className="mb-3 shadow-sm sticky-top" style={{top: '20px', zIndex: 100}}>
               <Card.Header as="h5" className="bg-white py-3">4. Ảnh sản phẩm</Card.Header>
               <Card.Body>

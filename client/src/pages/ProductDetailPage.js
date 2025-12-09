@@ -1,13 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Image, Button, ButtonGroup, Form, Spinner, Alert, Card } from 'react-bootstrap';
+import { Container, Row, Col, Image, Button, ButtonGroup, Form, Spinner, Alert, Card, Table } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import { toast } from "sonner";
-import { CheckCircle, X, Star, StarHalf, CircleUser, ChevronLeft, ChevronRight } from "lucide-react"; 
+// --- SỬA LỖI: Đổi InfoCircle thành Info ---
+import { CheckCircle, X, Star, StarHalf, CircleUser, ChevronLeft, ChevronRight, Info } from "lucide-react"; 
 
 // 1. IMPORT COMPONENT THẺ SẢN PHẨM
 import ProductCard from '../components/ProductCard';
+
+// --- COMPONENT BẢNG SIZE ---
+const SizeGuideTable = () => {
+    return (
+        <Card className="mb-5 border-0 shadow-sm">
+            <Card.Header className="bg-white py-3 border-bottom">
+                <h5 className="mb-0 fw-bold text-primary d-flex align-items-center">
+                    {/* --- SỬA LỖI: Dùng Info ở đây --- */}
+                    <Info size={20} className="me-2"/> Hướng dẫn chọn Size
+                </h5>
+            </Card.Header>
+            <Card.Body className="p-0">
+                <Table striped bordered hover responsive className="mb-0 text-center align-middle">
+                    <thead className="bg-primary text-white">
+                        <tr>
+                            <th className="py-3">Size</th>
+                            <th>Chiều cao (cm)</th>
+                            <th>Cân nặng (kg)</th>
+                            <th>Vòng ngực (cm)</th>
+                            <th>Dài áo gợi ý (cm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>XS</strong></td><td>155 - 160</td><td>45 - 50</td><td>82 - 86</td><td>64 - 66</td></tr>
+                        <tr><td><strong>S</strong></td><td>160 - 167</td><td>50 - 60</td><td>88 - 94</td><td>66 - 68</td></tr>
+                        <tr><td><strong>M</strong></td><td>165 - 170</td><td>60 - 68</td><td>94 - 98</td><td>68 - 70</td></tr>
+                        <tr><td><strong>L</strong></td><td>170 - 175</td><td>68 - 76</td><td>98 - 102</td><td>70 - 72</td></tr>
+                        <tr><td><strong>XL</strong></td><td>175 - 180</td><td>76 - 84</td><td>102 - 106</td><td>72 - 74</td></tr>
+                        <tr><td><strong>XXL</strong></td><td>180 - 185</td><td>84 - 92</td><td>106 - 110</td><td>74 - 76</td></tr>
+                    </tbody>
+                </Table>
+            </Card.Body>
+        </Card>
+    );
+};
 
 function ProductDetailPage() {
   const { id: productId } = useParams();
@@ -43,7 +79,7 @@ function ProductDetailPage() {
       try {
         setLoading(true);
         
-        // Reset lại các state khi ID thay đổi (để tránh hiện dữ liệu cũ)
+        // Reset lại các state khi ID thay đổi
         setRelatedProducts([]);
         setProduct(null);
         
@@ -79,16 +115,22 @@ function ProductDetailPage() {
     };
 
     fetchProductDetails();
-  }, [productId]); // Chạy lại khi ID trên URL thay đổi
+  }, [productId]); 
 
-  // --- 2. LOGIC LẤY SẢN PHẨM TƯƠNG TỰ (MỚI) ---
+  // --- 2. LOGIC LẤY SẢN PHẨM TƯƠNG TỰ (ĐÃ SỬA: THEO DANH MỤC CẤP 2) ---
   useEffect(() => {
-    if (!product) return; // Chỉ chạy khi đã có thông tin sản phẩm
+    if (!product) return; 
 
     const fetchRelated = async () => {
         try {
-            // Gọi API lấy sản phẩm cùng danh mục chính (ví dụ: 'Áo')
-            const { data } = await api.get(`/products?category=${product.category.main}`);
+            // Lấy ID danh mục cấp 2 (subCategory)
+            const subCatId = typeof product.subCategory === 'object' ? product.subCategory?._id : product.subCategory;
+            
+            // Nếu không có subCategory, dùng mainCategory làm fallback
+            const categoryQuery = subCatId ? `subCategory=${subCatId}` : `category=${product.category?._id || product.category}`;
+
+            // Gọi API lấy sản phẩm
+            const { data } = await api.get(`/products?${categoryQuery}`);
             
             // 1. Lọc bỏ sản phẩm đang xem
             const filtered = data.filter(p => p._id !== product._id);
@@ -201,8 +243,8 @@ function ProductDetailPage() {
           <h3 className="mb-2">{product.name}</h3>
           
           <div className="d-flex align-items-center mb-3">
-             <div className="d-flex me-2">{renderStars(Number(averageRating))}</div>
-             <span className="text-muted small">({reviews.length} đánh giá)</span>
+              <div className="d-flex me-2">{renderStars(Number(averageRating))}</div>
+              <span className="text-muted small">({reviews.length} đánh giá)</span>
           </div>
 
           <h2 className="my-3 text-danger fw-bold">
@@ -244,8 +286,16 @@ function ProductDetailPage() {
         </Col>
       </Row>
 
+      {/* --- PHẦN MỚI: BẢNG HƯỚNG DẪN CHỌN SIZE --- */}
+      <Row>
+          <Col>
+              <SizeGuideTable />
+          </Col>
+      </Row>
+      {/* ----------------------------------------- */}
+
       {/* --- KHU VỰC BÌNH LUẬN --- */}
-      <Row className="mt-5 mb-5">
+      <Row className="mb-5">
         <Col>
             <h4 className="mb-4 border-bottom pb-2">Đánh giá từ khách hàng ({reviews.length})</h4>
             
@@ -304,7 +354,7 @@ function ProductDetailPage() {
         </Col>
       </Row>
 
-      {/* --- KHU VỰC SẢN PHẨM TƯƠNG TỰ (MỚI) --- */}
+      {/* --- KHU VỰC SẢN PHẨM TƯƠNG TỰ (ĐÃ LỌC THEO SUB-CATEGORY) --- */}
       {relatedProducts.length > 0 && (
         <Row className="mt-5">
             <Col>
@@ -319,7 +369,7 @@ function ProductDetailPage() {
             </Col>
         </Row>
       )}
-      {/* -------------------------------------- */}
+      {/* ----------------------------------------------------------- */}
 
     </Container>
   );
