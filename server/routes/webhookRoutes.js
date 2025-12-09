@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { handleWebhook } = require('../controllers/webhookController');
+const { handleChatbotRequest } = require('../controllers/webhookController');
 
-// Dialogflow sẽ gọi đến đường dẫn này
-// URL: POST http://[your-server-address]/api/webhook
-router.post('/', handleWebhook);
+// Route này sẽ được gọi từ Frontend (ChatbotWidget.js)
+router.post('/chat', handleChatbotRequest); 
 
 module.exports = router;

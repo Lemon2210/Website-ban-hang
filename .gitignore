@@ -13,3 +13,5 @@ node_modules/
 
 # Bỏ qua thư mục build của React
 /client/build
+
+server/dialogflow-key.json
