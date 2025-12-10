@@ -1,20 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Card, Form, InputGroup, Spinner } from 'react-bootstrap';
-// Sử dụng thư viện icon cũ hoặc thay bằng lucide-react nếu bạn muốn đồng bộ
-import { ChatDots, Send, X, Robot } from 'react-bootstrap-icons'; 
+import { Button, Card, Form, InputGroup, Spinner, Image } from 'react-bootstrap';
+import { ChatDots, Send, X, Robot } from 'react-bootstrap-icons';
+import { useNavigate } from 'react-router-dom'; // <--- 1. Import useNavigate
 import api from '../api'; 
 
 export default function ChatbotWidget() {
+  const navigate = useNavigate(); // <--- 2. Khởi tạo navigate
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { text: "Xin chào! Mình có thể giúp gì cho bạn? (VD: Tư vấn size, Check hàng...)", isBot: true }
+    { text: "Xin chào! Mình có thể giúp gì cho bạn? (VD: Tìm áo polo, check đơn hàng...)", isBot: true }
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
   const messagesEndRef = useRef(null);
 
-  // Tự động cuộn xuống tin nhắn mới nhất
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -27,31 +27,39 @@ export default function ChatbotWidget() {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
-    // 1. Thêm tin nhắn người dùng vào khung chat
     const userMsg = { text: inputValue, isBot: false };
     setMessages(prev => [...prev, userMsg]);
     setInputValue("");
     setIsLoading(true);
 
     try {
-      // 2. Gọi API Backend (Đã sửa đường dẫn thành /webhook/chat)
-      // Lưu ý: Đảm bảo server.js đã khai báo app.use('/api/webhook', webhookRoutes)
       const { data } = await api.post('/webhook/chat', { message: userMsg.text });
       
-      // 3. Thêm tin nhắn Bot trả lời vào khung chat
-      const botMsg = { text: data.reply, isBot: true };
+      // <--- 3. NHẬN CẢ TEXT VÀ PRODUCTS ---
+      const botMsg = { 
+          text: data.reply, 
+          isBot: true,
+          products: data.products || [] // Lưu mảng sản phẩm vào tin nhắn
+      };
       setMessages(prev => [...prev, botMsg]);
+      // ------------------------------------
+
     } catch (error) {
-      console.error("Chatbot Error:", error);
-      setMessages(prev => [...prev, { text: "Xin lỗi, server đang bận. Bạn thử lại sau nhé!", isBot: true }]);
+      console.error(error);
+      setMessages(prev => [...prev, { text: "Lỗi kết nối server.", isBot: true }]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- 4. HÀM CHUYỂN HƯỚNG KHI CLICK SẢN PHẨM ---
+  const handleProductClick = (productId) => {
+      navigate(`/product/${productId}`); // Chuyển sang trang chi tiết
+      // setIsOpen(false); // Có thể đóng chat hoặc không tùy bạn
+  };
+
   return (
     <div style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 9999 }}>
-      {/* Nút bật/tắt Chatbot */}
       {!isOpen && (
         <Button 
             variant="primary" 
@@ -63,10 +71,8 @@ export default function ChatbotWidget() {
         </Button>
       )}
 
-      {/* Cửa sổ Chat */}
       {isOpen && (
-        <Card className="shadow-lg border-0" style={{ width: '350px', height: '500px', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
+        <Card className="shadow-lg border-0" style={{ width: '360px', height: '550px', display: 'flex', flexDirection: 'column' }}>
             <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center py-3">
                 <div className="d-flex align-items-center gap-2">
                     <Robot size={24} />
@@ -77,37 +83,64 @@ export default function ChatbotWidget() {
                 </Button>
             </Card.Header>
 
-            {/* Body (List tin nhắn) */}
             <Card.Body className="flex-grow-1 overflow-auto bg-light" style={{ padding: '15px' }}>
                 {messages.map((msg, index) => (
-                    <div key={index} className={`d-flex mb-3 ${msg.isBot ? 'justify-content-start' : 'justify-content-end'}`}>
-                        {msg.isBot && (
-                            <div className="bg-white rounded-circle p-1 me-2 shadow-sm" style={{width: 32, height: 32, alignSelf: 'end'}}>
-                                <Robot className="text-primary m-1"/> 
+                    <div key={index} className={`d-flex flex-column mb-3 ${msg.isBot ? 'align-items-start' : 'align-items-end'}`}>
+                        {/* Bong bóng chat */}
+                        <div className={`d-flex ${msg.isBot ? 'flex-row' : 'flex-row-reverse'} w-100`}>
+                            {msg.isBot && (
+                                <div className="bg-white rounded-circle p-1 me-2 shadow-sm flex-shrink-0" style={{width: 32, height: 32}}>
+                                    <Robot className="text-primary m-1"/> 
+                                </div>
+                            )}
+                            <div 
+                                className={`p-3 rounded-3 shadow-sm ${msg.isBot ? 'bg-white text-dark' : 'bg-primary text-white'}`}
+                                style={{ maxWidth: '85%', fontSize: '0.95rem' }}
+                            >
+                                <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
+                            </div>
+                        </div>
+
+                        {/* --- 5. HIỂN THỊ DANH SÁCH SẢN PHẨM (NẾU CÓ) --- */}
+                        {msg.isBot && msg.products && msg.products.length > 0 && (
+                            <div className="mt-2 ms-5" style={{width: '85%'}}>
+                                {msg.products.map(prod => (
+                                    <div 
+                                        key={prod._id} 
+                                        className="bg-white p-2 mb-2 rounded border shadow-sm d-flex align-items-center"
+                                        style={{cursor: 'pointer', transition: '0.2s'}}
+                                        onClick={() => handleProductClick(prod._id)}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                    >
+                                        <Image 
+                                            src={prod.image || 'https://via.placeholder.com/50'} 
+                                            rounded 
+                                            style={{width: '50px', height: '50px', objectFit: 'cover'}}
+                                        />
+                                        <div className="ms-2 flex-grow-1" style={{minWidth: 0}}>
+                                            <div className="fw-bold text-truncate" style={{fontSize: '0.9rem'}}>{prod.name}</div>
+                                            <div className="text-danger small fw-bold">
+                                                {prod.price.toLocaleString('vi-VN')}₫
+                                                {prod.discount > 0 && <span className="text-muted ms-1 text-decoration-line-through" style={{fontSize: '0.8em'}}>-{prod.discount}%</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
-                        <div 
-                            className={`p-3 rounded-3 shadow-sm ${msg.isBot ? 'bg-white text-dark' : 'bg-primary text-white'}`}
-                            style={{ maxWidth: '80%', fontSize: '0.95rem' }}
-                        >
-                            {/* Hỗ trợ hiển thị in đậm (từ Dialogflow trả về) */}
-                            {msg.text.split('\n').map((line, i) => (
-                                <div key={i} dangerouslySetInnerHTML={{ 
-                                    __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-                                }} />
-                            ))}
-                        </div>
+                        {/* ----------------------------------------------- */}
                     </div>
                 ))}
+                
                 {isLoading && (
                     <div className="text-start text-muted ms-5 small">
-                        <Spinner animation="dots" size="sm" /> AI đang nhập...
+                        <Spinner animation="dots" size="sm" /> AI đang tìm kiếm...
                     </div>
                 )}
                 <div ref={messagesEndRef} />
             </Card.Body>
 
-            {/* Footer (Input) */}
             <Card.Footer className="bg-white p-2">
                 <Form onSubmit={handleSendMessage}>
                     <InputGroup>
