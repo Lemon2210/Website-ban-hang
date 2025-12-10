@@ -24,6 +24,7 @@ import { CategoryPage } from './pages/customer/CategoryPage'; // Trang danh mụ
 import SearchResultsPage from './pages/customer/SearchResultsPage';
 import PaymentResultPage from './pages/customer/PaymentResultPage';
 import SizeGuidePage from './pages/SizeGuidePage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 // Import Trang Admin (Admin Pages)
 import DashboardPage from './pages/admin/DashboardPage';
@@ -97,6 +98,7 @@ function App() {
           <Route path="men" element={<CategoryPage gender="Men" title="Thời Trang Nam" />} />
           <Route path="women" element={<CategoryPage gender="Women" title="Thời Trang Nữ" />} />
           <Route path="size-guide" element={<SizeGuidePage />} />
+          <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="accessories" element={<CategoryPage category="Phụ kiện" title="Phụ Kiện" />} />
           
           <Route path="search" element={<SearchResultsPage />} />

@@ -3,7 +3,6 @@ import { Container, Row, Col, Nav } from 'react-bootstrap';
 import { Facebook, Youtube, Instagram } from 'react-bootstrap-icons';
 import { LinkContainer } from 'react-router-bootstrap';
 
-// (Đây là layout mô phỏng lại ảnh footer của bạn)
 function Footer() {
   return (
     <footer className="bg-dark text-light mt-auto py-5">
@@ -13,10 +12,10 @@ function Footer() {
             <h5>LEMON FASHION</h5>
             <Nav className="flex-column">
               <LinkContainer to="/profile">
-                <Nav.Link href="/profile" className="text-light p-0">Tài khoản Lemon</Nav.Link>
+                <Nav.Link className="text-light p-0">Tài khoản Lemon</Nav.Link>
               </LinkContainer>
               <LinkContainer to="/login">
-                <Nav.Link href="/login" className="text-light p-0">Đăng kí thành viên</Nav.Link>
+                <Nav.Link className="text-light p-0">Đăng kí thành viên</Nav.Link>
               </LinkContainer>
             </Nav>
           </Col>
@@ -24,25 +23,26 @@ function Footer() {
           <Col md={6} lg={3}>
             <h5>CHÍNH SÁCH</h5>
             <Nav className="flex-column">
-              <Nav.Link href="#" className="text-light p-0">Chính sách đổi trả 60 ngày</Nav.Link>
-              
-              <Nav.Link href="#" className="text-light p-0">Chính sách bảo mật</Nav.Link>
+              {/* --- ĐÃ SỬA: GẮN LINK CHÍNH SÁCH BẢO MẬT --- */}
+              <LinkContainer to="/privacy-policy">
+                <Nav.Link className="text-light p-0">Chính sách bảo mật</Nav.Link>
+              </LinkContainer>
+              {/* ------------------------------------------- */}
             </Nav>
           </Col>
 
           <Col md={6} lg={3}>
             <h5>CHĂM SÓC KHÁCH HÀNG</h5>
             <Nav className="flex-column">
-              
-              <Nav.Link href="#" className="text-light p-0">Hướng dẫn chọn size</Nav.Link>
-              
+              <LinkContainer to="/size-guide">
+                 <Nav.Link className="text-light p-0">Hướng dẫn chọn size</Nav.Link>
+              </LinkContainer>
             </Nav>
           </Col>
 
           <Col md={6} lg={3}>
             <h5>ĐỊA CHỈ LIÊN HỆ</h5>
             <address className="text-light" style={{ fontSize: '0.9rem' }}>
-              
               Văn phòng TPHCM: 180 Cao Lỗ, phường 4, quận 8, TPHCM
             </address>
             <div>
