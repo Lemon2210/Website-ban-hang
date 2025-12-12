@@ -1,5 +1,7 @@
 import React from 'react';
 import { Tabs, Tab, Row, Col, Card } from 'react-bootstrap';
+import { Link } from 'react-router-dom'; // <--- 1. Import Link
+
 // nam
 import aokhoacImg from '../assets/images/categories/nam/aokhoac.png';
 import aodaitayImg from '../assets/images/categories/nam/aotaydai.png';
@@ -16,8 +18,7 @@ import braleggingsImg from '../assets/images/categories/nu/bra.png';
 import vaythethaoImg from '../assets/images/categories/nu/vaynu.png';
 import vaydamImg from '../assets/images/categories/nu/nudam.png';
 
-
-// (Đây là dữ liệu tĩnh, bạn có thể thay thế sau)
+// Dữ liệu danh mục
 const categoriesNam = [
   { name: 'ÁO KHOÁC', img: aokhoacImg },
   { name: 'HOODIE & SWEATER', img: hoodieImg },
@@ -39,35 +40,52 @@ const categoriesNu = [
 function CategoryTabs() {
   return (
     <Tabs defaultActiveKey="nam" id="category-tabs" className="mb-3 justify-content-center border-0">
+      
+      {/* --- TAB NAM --- */}
       <Tab eventKey="nam" title="NAM">
         <Row className="g-3">
           {categoriesNam.map((cat) => (
             <Col key={cat.name} xs={6} md={4} lg={2}>
-              {/* (Sau này chúng ta sẽ bọc bằng <Link>) */}
-              <a href={`/category/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
-                <Card className="border-0 text-center">
+              {/* 2. SỬA ĐỔI QUAN TRỌNG: 
+                  Thay thẻ <a> bằng <Link> 
+                  Chuyển hướng sang trang search với keyword là tên danh mục
+              */}
+              <Link 
+                to={`/search?keyword=${encodeURIComponent(cat.name)}`} 
+                style={{ textDecoration: 'none' }}
+              >
+                <Card className="border-0 text-center h-100 shadow-sm" style={{transition: '0.3s'}}>
                   <Card.Img variant="top" src={cat.img} className="rounded-3" />
-                  <Card.Body>
-                    <Card.Title as="h6" className="text-dark">{cat.name}</Card.Title>
+                  <Card.Body className="p-2">
+                    <Card.Title as="h6" className="text-dark fw-bold mb-0" style={{fontSize: '0.9rem'}}>
+                        {cat.name}
+                    </Card.Title>
                   </Card.Body>
                 </Card>
-              </a>
+              </Link>
             </Col>
           ))}
         </Row>
       </Tab>
+
+      {/* --- TAB NỮ --- */}
       <Tab eventKey="nu" title="NỮ">
         <Row className="g-3">
           {categoriesNu.map((cat) => (
             <Col key={cat.name} xs={6} md={4} lg={2}>
-              <a href={`/category/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
-                <Card className="border-0 text-center">
+              <Link 
+                to={`/search?keyword=${encodeURIComponent(cat.name)}`} 
+                style={{ textDecoration: 'none' }}
+              >
+                <Card className="border-0 text-center h-100 shadow-sm" style={{transition: '0.3s'}}>
                   <Card.Img variant="top" src={cat.img} className="rounded-3" />
-                  <Card.Body>
-                    <Card.Title as="h6" className="text-dark">{cat.name}</Card.Title>
+                  <Card.Body className="p-2">
+                    <Card.Title as="h6" className="text-dark fw-bold mb-0" style={{fontSize: '0.9rem'}}>
+                        {cat.name}
+                    </Card.Title>
                   </Card.Body>
                 </Card>
-              </a>
+              </Link>
             </Col>
           ))}
         </Row>
